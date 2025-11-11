@@ -1,0 +1,80 @@
+/* Watch Page Styles */
+
+.live-badge-small {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #ff0000;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+#streamStatus {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+#streamStatus small {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.9em;
+}
+
+/* Updated chat styles to match dark design */
+.chat-section {
+    background-color: #18181b; /* Match site background */
+    color: #efeff1; /* Match site text color */
+}
+
+.chat-header {
+    /* Remove red background, use dark theme */
+    background-color: #18181b; /* Same as chat section */
+    color: #efeff1; /* Match site text */
+    padding: 1rem 1.5rem; /* Match site.css padding */
+    border-bottom: 1px solid #2d2d31; /* Match site border */
+    font-weight: bold;
+    border-radius: 0; /* Remove rounded corners to match flat design */
+}
+
+.chat-message {
+    margin: 10px 0;
+    padding: 8px 12px;
+    border-radius: 12px;
+    color: #efeff1; /* Ensure text is visible */
+}
+
+.chat-username {
+    font-weight: bold;
+    color: #efeff1; /* Match text color */
+}
+
+.chat-input-container {
+    display: flex;
+    margin-top: 10px;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #2d2d31; /* Match dark input borders */
+    border-radius: 8px 0 0 8px;
+    background: #2d2d31; /* Dark background */
+    color: #efeff1; /* Light text */
+}
+
+.chat-send-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Match site gradient */
+    border: none;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 0 8px 8px 0;
+    cursor: pointer;
+}
+
+.chat-send-btn:hover {
+    transform: translateY(-2px); /* Add hover effect like other buttons */
+}

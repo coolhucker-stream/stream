@@ -1,0 +1,200 @@
+﻿@page
+@model WatchModel
+@{
+    ViewData["Title"] = Model.Stream?.Title ?? "Watch Stream";
+}
+
+@if (Model.Stream == null)
+{
+    <div class="container text-center mt-5">
+        <h2>Stream not found</h2>
+        <p>This stream might have ended or doesn't exist.</p>
+        <a href="/" class="btn btn-primary">Back to Home</a>
+    </div>
+}
+else
+{
+    <div class="watch-container">
+        <div class="video-section">
+            <div class="video-player">
+                @if (Model.Stream.IsLive)
+                {
+                    <!-- Live Stream Player (HTTP-FLV) -->
+                    <video id="streamPlayer" controls autoplay muted style="width: 100%; height: auto;">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div id="streamStatus" class="alert alert-info mt-2" style="display: none;">
+                        <span id="statusMessage">Loading stream...</span>
+                    </div>
+                }
+                else
+                {
+                    <!-- VOD/Demo Video Player -->
+                    <video id="streamPlayer" controls autoplay>
+                        <source src="@Model.Stream.StreamUrl" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                }
+            </div>
+
+            <div class="stream-header">
+                <div class="stream-main-info">
+                    <div class="streamer-avatar-large" style="background-image: url('/images/avatar.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat;">
+                    </div>
+                    <div>
+                        <h1 class="stream-title-large">@Model.Stream.Title</h1>
+                        <p class="streamer-name-large">@Model.Stream.Description</p>
+                    </div>
+                </div>
+                <div class="stream-stats">
+                    @if (Model.Stream.IsLive)
+                    {
+                        <span class="live-indicator">
+                            <span class="pulse"></span>
+                            LIVE
+                        </span>
+                    }
+                    else
+                    {
+                        <span id="liveStatus" class="badge bg-secondary">OFFLINE</span>
+                    }
+                    <span class="viewer-stat">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z" />
+                            <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z" />
+                        </svg>
+                        @Model.Stream.ViewerCount.ToString("N0") viewers
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-section">
+            <div class="chat-header">
+                <h3>Live Chat</h3>
+                <span class="chat-viewer-count">@Model.Stream.ViewerCount online</span>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <!-- Chat messages will be added here dynamically -->
+            </div>
+            <div class="chat-input-container">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Send a message..." />
+                <button class="chat-send-btn" id="chatSendBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="settingsModalLabel">Stream Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="settingsForm">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label for="StreamTitle" class="form-label">Stream Title</label>
+                        <input type="text" class="form-control" id="StreamTitle" name="StreamTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="StreamDescription" class="form-label">Stream Description</label>
+                        <textarea class="form-control" id="StreamDescription" name="StreamDescription" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="StreamKey" class="form-label">Stream Key</label>
+                        <input type="text" class="form-control" id="StreamKey" name="StreamKey" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Watch page styles -->
+    <link rel="stylesheet" href="~/css/watch.css" asp-append-version="true" />
+
+    <!-- SignalR client library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+
+    <!-- Watch page JavaScript - load first to initialize error handler -->
+    <script>
+        // Pass server-side data to JavaScript BEFORE loading flv.js
+        window.isLive = @(Model.Stream?.IsLive.ToString().ToLower() ?? "false");
+        window.streamUrl = '@Model.Stream?.StreamUrl';
+
+        // Track flv.js loading state
+        window.flvJsLoadStartTime = Date.now();
+        window.flvJsLoaded = false;
+    </script>
+
+    <!-- flv.js для проигрывания HTTP-FLV стримов -->
+    <script src="https://cdn.jsdelivr.net/npm/flv.js@1.6.2/dist/flv.min.js"
+            onload="window.flvJsLoaded = true; console.log('✅ flv.js loaded successfully in ' + (Date.now() - window.flvJsLoadStartTime) + 'ms');"
+            onerror="window.WatchPage && window.WatchPage.handleFlvJsLoadError ? window.WatchPage.handleFlvJsLoadError() : console.error('❌ Failed to load flv.js and WatchPage is not ready');">
+    </script>
+
+    <!-- Timeout detector for flv.js loading -->
+    <script>
+        // If flv.js doesn't load within 5 seconds, show error
+        setTimeout(function() {
+            if (!window.flvJsLoaded && typeof flvjs === 'undefined') {
+                console.error('❌ flv.js loading timeout (5 seconds)');
+                console.error('CDN might be blocked or too slow');
+
+                // Show error in UI if WatchPage is ready
+                if (window.WatchPage && window.WatchPage.handleFlvJsLoadError) {
+                    window.WatchPage.handleFlvJsLoadError();
+                }
+            }
+        }, 5000);
+    </script>
+
+    <!-- Main watch page logic -->
+    <script src="~/js/watch.js" asp-append-version="true"></script>
+
+    <!-- Settings modal script -->
+    <script>
+        $(document).ready(function() {
+            // Load current settings when modal opens
+            $('#settingsModal').on('show.bs.modal', function() {
+                $.get('/Settings?format=json', function(data) {
+                    console.log('Loaded settings:', data);
+                    $('#StreamTitle').val(data.streamTitle);
+                    $('#StreamDescription').val(data.streamDescription);
+                    $('#StreamKey').val(data.streamKey);
+                }).fail(function(xhr, status, error) {
+                    console.error('Failed to load settings:', status, error);
+                });
+            });
+
+            // Save settings
+            $('#saveSettingsBtn').click(function() {
+                var formData = $('#settingsForm').serialize();
+                $.post('/Settings', formData, function(response) {
+                    if (response.success) {
+                        $('#settingsModal').modal('hide');
+                        // Update the displayed title and description
+                        $('.stream-title-large').text($('#StreamTitle').val());
+                        $('.streamer-name-large').text($('#StreamDescription').val());
+                        alert('Settings saved successfully!');
+                    } else {
+                        alert('Error saving settings.');
+                    }
+                });
+            });
+        });
+    </script>
+}

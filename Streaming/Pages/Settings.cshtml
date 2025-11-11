@@ -1,0 +1,30 @@
+@page
+@model Streaming.Pages.SettingsModel
+@{
+    ViewData["Title"] = "Stream Settings";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Stream Settings</h2>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="mb-3">
+                            <label for="StreamDescription" class="form-label">Stream Description</label>
+                            <textarea class="form-control" id="StreamDescription" name="StreamDescription" rows="3" required>@Model.Settings.StreamDescription</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="StreamKey" class="form-label">Stream Key</label>
+                            <input type="text" class="form-control" id="StreamKey" name="StreamKey" value="@Model.Settings.StreamKey" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Settings</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

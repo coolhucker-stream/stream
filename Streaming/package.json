@@ -1,0 +1,28 @@
+{
+  "name": "streamhub-rtmp-server",
+  "version": "1.0.0",
+  "description": "RTMP Server for StreamHub - receives streams from OBS and validates Stream Keys",
+  "main": "rtmp-server.js",
+  "scripts": {
+    "start": "node rtmp-server.js",
+    "dev": "cross-env DEV_MODE=true node rtmp-server.js",
+    "dev:watch": "cross-env DEV_MODE=true nodemon rtmp-server.js",
+    "prod": "cross-env DEV_MODE=false node rtmp-server.js"
+  },
+  "keywords": [
+    "rtmp",
+    "streaming",
+    "obs",
+    "live"
+  ],
+  "author": "StreamHub",
+  "license": "MIT",
+  "dependencies": {
+    "node-media-server": "^2.6.2",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "cross-env": "^7.0.3"
+  }
+}

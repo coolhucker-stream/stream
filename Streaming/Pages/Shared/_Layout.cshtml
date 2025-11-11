@@ -1,0 +1,94 @@
+﻿@using Telegram.Bot.Types.Enums
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Бавария Мюнхен</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Streaming.styles.css" asp-append-version="true" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark-custom">
+            <div class="container-fluid">
+                <a class="navbar-brand brand-logo" asp-area="" asp-page="/Watch">
+                    <img src="~/images/bm.png" alt="Бавария Мюнхен" class="logo-icon" />
+                    <span class="logo-text">Дискотека Бавария</span>
+                </a>
+                <div class="d-flex">
+                    <div id="user-info" style="display: none;">
+                        <span id="user-display-name" class="text-light me-2"></span>
+                        @if (Context.Session.Keys.Contains("TelegramStatus") && int.Parse(Context.Session.GetString("TelegramStatus")) == (int)ChatMemberStatus.Administrator)
+                        {
+                            <button class="btn btn-outline-light btn-sm me-2" data-bs-toggle="modal" data-bs-target="#settingsModal">Settings</button>
+                        }
+                        <form method="post" asp-controller="Auth" asp-action="Logout" class="d-inline">
+                            <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main role="main" class="main-content">
+        @RenderBody()
+    </main>
+
+    <footer class="footer-custom">
+        <div class="container">
+            <div class="text-center text-muted">
+            </div>
+        </div>
+    </footer>
+
+    <!-- Telegram Login Widget -->
+    <div id="telegram-login" class="text-center mt-3" style="display: none;">
+        <p class="text-muted mb-2">Login with Telegram to access the platform:</p>
+        <script async src="https://telegram.org/js/telegram-widget.js?22" 
+                data-telegram-login="DiscoBayernTestBot" 
+                data-size="large" 
+                data-auth-url="https://chantelle-dissyllabic-leisa.ngrok-free.dev/Auth/Telegram"
+                data-request-access="write">
+        </script>
+        <div class="mt-3">
+            <p class="text-muted mb-2">Or use test login for development:</p>
+            <a href="/Auth/TestLogin" class="btn btn-warning">Test Login</a>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Settings form or content goes here -->
+                    <p>Settings content...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,41 @@
+services:
+  rtmp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.rtmp
+    ports:
+      - "1935:1935"
+      - "8000:8000"
+      - "1985:1985"
+    networks:
+      streaming-network:
+        aliases:
+          - rtmp-server
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - rtmp-data:/usr/local/srs/objs/nginx/html
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  streaming-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  rtmp-data:

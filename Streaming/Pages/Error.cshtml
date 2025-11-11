@@ -1,0 +1,30 @@
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="container text-center mt-5">
+    <h1 class="text-danger">Error</h1>
+    
+    @if (!string.IsNullOrEmpty(Request.Query["message"]))
+    {
+        <h2 class="text-warning">@Request.Query["message"]</h2>
+        <p class="text-muted">Please subscribe to our Telegram group and try again.</p>
+    }
+    else
+    {
+        <h2 class="text-danger">An error occurred while processing your request.</h2>
+    }
+
+    @if (Model.ShowRequestId)
+    {
+        <p>
+            <strong>Request ID:</strong> <code>@Model.RequestId</code>
+        </p>
+    }
+
+    <p>
+        <a href="/" class="btn btn-primary mt-3">Go to Stream</a>
+    </p>
+</div>

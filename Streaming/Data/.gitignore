@@ -1,0 +1,4 @@
+# Ignore SQLite database files in data directory
+*.db
+*.db-shm
+*.db-wal
