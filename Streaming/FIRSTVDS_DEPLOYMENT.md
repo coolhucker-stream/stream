@@ -52,8 +52,15 @@ curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
 rm get-docker.sh
 
+# Удалить Docker Compose
+apt remove docker-compose docker-compose-v2 docker-compose-plugin -y
+
 # Установить Docker Compose
-apt install docker-compose -y
+apt install docker-compose -y    (тут в последствие нужно будет использовать docker compose буз дефиса)
+
+# Установить Docker Compose v2 официальным способом
+curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
 
 # Добавить пользователя в группу docker (опционально)
 # usermod -aG docker $USER
@@ -77,9 +84,6 @@ git clone https://github.com/coolhucker-stream/stream.git .
 
 # Создать необходимые директории
 mkdir -p data media logs certs nginx/ssl
-
-# Скопировать production конфигурацию
-cp docker-compose.prod.yml docker-compose.yml
 
 # Проверить конфигурацию
 cat docker-compose.yml
@@ -156,9 +160,73 @@ A    @           YOUR_SERVER_IP
 A    www         YOUR_SERVER_IP
 A    rtmp        YOUR_SERVER_IP
 A    api         YOUR_SERVER_IP
+
+# ⚠️ ВАЖНО: DNS пропагация занимает 2-24 часа!
+# Проверить готовность: nslookup footballteams.ru 8.8.8.8
 ```
 
 ### SSL сертификат (Let's Encrypt):
+
+#### 🏆 **Способ 1: Nginx плагин (самый простой и рекомендуемый)**
+
+```bash
+# Установить Certbot с nginx плагином
+apt install certbot python3-certbot-nginx -y
+
+# Создать базовую HTTP конфигурацию
+cat > /etc/nginx/sites-available/streaming << 'EOF'
+server {
+    listen 80;
+    server_name footballteams.ru www.footballteams.ru;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    location /live/ {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        add_header Access-Control-Allow-Origin * always;
+    }
+}
+EOF
+
+# Активировать конфигурацию
+ln -sf /etc/nginx/sites-available/streaming /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl enable nginx && systemctl start nginx
+
+# Разрешить HTTP в файрволе
+ufw allow 80/tcp
+
+# Запустить Docker контейнеры
+cd /opt/streaming && docker-compose up -d
+
+# 🎯 АВТОМАТИЧЕСКИ получить SSL и настроить HTTPS
+certbot --nginx -d footballteams.ru -d www.footballteams.ru --non-interactive --agree-tos --email admin@footballteams.ru
+
+# Настроить автообновление SSL сертификата
+echo "0 12 * * * /usr/bin/certbot renew --quiet && /usr/sbin/nginx -s reload" | crontab -
+
+# Проверить результат
+curl -I https://footballteams.ru
+```
+
+**✅ Готово! Nginx плагин автоматически:**
+- Получит SSL сертификат
+- Настроит HTTPS редиректы 
+- Обновит конфигурацию Nginx
+- Перезагрузит Nginx
+
+#### **Способ 2: Standalone режим (если nginx плагин не работает)**
 
 ```bash
 # Установить Certbot
@@ -168,22 +236,22 @@ apt install certbot nginx -y
 docker-compose stop api
 
 # Получить SSL сертификат
-certbot certonly --standalone -d yourdomain.ru -d www.yourdomain.ru
+certbot certonly --standalone -d footballteams.ru -d www.footballteams.ru
 
 # Создать Nginx конфигурацию для HTTPS
 cat > /etc/nginx/sites-available/streaming << 'EOF'
 server {
     listen 80;
-    server_name yourdomain.ru www.yourdomain.ru;
+    server_name footballteams.ru www.footballteams.ru;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name yourdomain.ru www.yourdomain.ru;
+    server_name footballteams.ru www.footballteams.ru;
     
-    ssl_certificate /etc/letsencrypt/live/yourdomain.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.ru/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/footballteams.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/footballteams.ru/privkey.pem;
     
     # SSL оптимизация
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -228,6 +296,71 @@ echo "0 12 * * * /usr/bin/certbot renew --quiet && /usr/sbin/nginx -s reload" | 
 
 # Запустить API контейнер обратно
 docker-compose start api
+```
+
+#### **Способ 3: При проблемах с DNS пропагацией**
+
+```bash
+# Если DNS еще не пропагировался, используйте manual DNS challenge:
+certbot certonly --manual --preferred-challenges dns -d footballteams.ru -d www.footballteams.ru
+
+# Certbot покажет TXT записи для добавления в DNS REG.RU
+# Добавьте их в панели управления доменом и нажмите Enter
+
+# После получения сертификата создайте конфигурацию Nginx вручную
+```
+
+#### **Проверка и устранение неисправностей:**
+
+```bash
+# Если certbot не может подключиться:
+# 1. Проверить DNS пропагацию
+nslookup footballteams.ru 8.8.8.8
+
+# 2. Проверить доступность сайта извне
+curl http://footballteams.ru
+
+# 3. Проверить файрвол
+ufw status | grep 80
+
+# 4. Проверить Nginx статус
+systemctl status nginx
+nginx -t
+```
+
+---
+
+## 🚨 Быстрое решение проблем SSL
+
+### **Если получение SSL не работает:**
+
+#### **Одна команда для диагностики:**
+```bash
+# Полная диагностика проблемы
+echo "=== DNS проверка ===" && nslookup footballteams.ru 8.8.8.8 && \
+echo "=== Доступность сайта ===" && curl -I http://footballteams.ru && \
+echo "=== Файрвол статус ===" && ufw status | grep -E "(80|443)" && \
+echo "=== Nginx статус ===" && systemctl status nginx --no-pager -l && \
+echo "=== Nginx конфиг ===" && nginx -t
+```
+
+#### **Быстрое исправление:**
+```bash
+# Исправить типичные проблемы одной командой
+ufw allow 80/tcp && ufw allow 443/tcp && \
+systemctl start nginx && \
+cd /opt/streaming && docker-compose up -d && \
+sleep 5 && \
+curl http://footballteams.ru && \
+echo "Если видите ответ - можно получать SSL"
+```
+
+#### **Экстренное решение - временный HTTP:**
+```bash
+# Если SSL не получается, запустить временно на HTTP
+ufw allow 8080/tcp && \
+cd /opt/streaming && docker-compose up -d && \
+echo "Сайт доступен на http://62.109.28.207:8080"
 ```
 
 ---
@@ -545,9 +678,9 @@ http://YOUR_SERVER_IP:8081/live/YOUR_STREAM_KEY.m3u8
 
 ### ⚡ **При настройке домена и SSL:**
 Внешний Nginx будет проксировать:
-- `yourdomain.ru` → `127.0.0.1:8080` (API)
-- `yourdomain.ru/live/` → `127.0.0.1:8081` (RTMP плейбек)
+- `footballteams.ru` → `127.0.0.1:8080` (API)
+- `footballteams.ru/live/` → `127.0.0.1:8081` (RTMP плейбек)
 
 **После настройки домена доступ будет стандартный:**
-- https://yourdomain.ru (веб-интерфейс)
-- rtmp://yourdomain.ru:1935/live/YOUR_STREAM_KEY (стриминг)
+- https://footballteams.ru (веб-интерфейс)
+- rtmp://footballteams.ru:1935/live/YOUR_STREAM_KEY (стриминг)

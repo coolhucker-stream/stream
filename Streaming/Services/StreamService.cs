@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using Streaming.Models;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 
 namespace Streaming.Services
 {
@@ -9,12 +10,14 @@ namespace Streaming.Services
     {
         private StreamSettings _settings;
         private readonly StreamSettingsStore _settingsStore;
+        private readonly IConfiguration _configuration;
         private static VideoStream _stream;
         private DateTime? _streamStartTime;
 
-        public StreamService(StreamSettingsStore settingsStore)
+        public StreamService(StreamSettingsStore settingsStore, IConfiguration configuration)
         {
             _settingsStore = settingsStore;
+            _configuration = configuration;
 
             // Load settings from file-backed store (synchronously for constructor simplicity)
             _settings = _settingsStore.GetAsync().GetAwaiter().GetResult();
@@ -32,6 +35,8 @@ namespace Streaming.Services
 
             if (_stream == null)
             {
+                var playbackBaseUrl = _configuration["Streaming:PlaybackBaseUrl"] ?? "http://localhost:8081/live";
+
                 _stream = new VideoStream
                 {
                     Id = 1,
@@ -39,7 +44,7 @@ namespace Streaming.Services
                     Description = _settings.StreamDescription,
                     StreamerName = "Streamer",
                     ThumbnailUrl = $"https://i.pravatar.cc/400?img",
-                    StreamUrl = $"http://localhost:8000/live/{_settings.StreamKey}.flv",
+                    StreamUrl = $"{playbackBaseUrl}/{_settings.StreamKey}.m3u8",
                     ViewerCount = 0,
                     Category = "Gaming",
                     IsLive = false,
@@ -99,9 +104,11 @@ namespace Streaming.Services
             _settings.StreamTitle = settings.StreamTitle;
 
             // Update stream properties to reflect new settings
+            var playbackBaseUrl = _configuration["Streaming:PlaybackBaseUrl"] ?? "http://localhost:8081/live";
+
             _stream.Title = settings.StreamTitle;
             _stream.Description = settings.StreamDescription;
-            _stream.StreamUrl = $"http://localhost:8000/live/{settings.StreamKey}.flv";
+            _stream.StreamUrl = $"{playbackBaseUrl}/{settings.StreamKey}.m3u8";
 
             // Persist settings to file store
             _settingsStore.UpdateAsync(_settings).GetAwaiter().GetResult();
