@@ -47,13 +47,12 @@ app.UseForwardedHeaders();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    // TEMPORARILY DISABLED for Docker deployment without SSL:
-    // app.UseHsts();
-    // app.UseHttpsRedirection();
+    // Re-enable HSTS for HTTPS setup
+    app.UseHsts();
 }
 
-// EXPLICITLY DISABLE HTTPS REDIRECTION FOR DOCKER DEPLOYMENT
-// app.UseHttpsRedirection(); // COMMENTED OUT - no HTTPS redirects
+// Enable HTTPS redirection for production with SSL
+app.UseHttpsRedirection();
 
 // TEMPORARILY DISABLE HTTPS REDIRECTION FOR DOCKER DEPLOYMENT
 // This middleware will be re-enabled when SSL certificates are configured
@@ -88,14 +87,6 @@ app.Use(async (context, next) =>
     }
 });
 */
-
-// FORCE HTTP ONLY - NO HTTPS REDIRECTS
-app.Use(async (context, next) =>
-{
-    // Remove any HTTPS enforcement headers
-    context.Response.Headers.Remove("Strict-Transport-Security");
-    await next();
-});
 
 app.UseStaticFiles();
 
