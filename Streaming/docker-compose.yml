@@ -47,7 +47,7 @@ services:
       retries: 5     # Увеличено
       start_period: 60s  # Увеличено
 
-  networks:
+networks:
   streaming-network:
     driver: bridge
 
