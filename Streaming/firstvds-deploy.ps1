@@ -1,4 +1,4 @@
-# 🚀 FirstVDS.ru Deployment Script
+# 🚀 FirstVDS.ru Deployment Script с обновленными портами
 param(
     [string]$ServerIP = "",
     [string]$Domain = "",

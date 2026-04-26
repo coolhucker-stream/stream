@@ -99,10 +99,10 @@ ufw --force reset
 
 # Разрешить необходимые порты
 ufw allow 22/tcp      # SSH
-ufw allow 80/tcp      # HTTP
-ufw allow 443/tcp     # HTTPS
+ufw allow 8080/tcp    # API HTTP (изменено с 80)
+ufw allow 8081/tcp    # RTMP HTTP плейбек (изменено с 8000)
 ufw allow 1935/tcp    # RTMP для стриминга
-ufw allow 8000/tcp    # RTMP HTTP интерфейс
+ufw allow 443/tcp     # HTTPS (для внешнего Nginx)
 
 # Включить файрвол
 ufw --force enable
@@ -120,11 +120,14 @@ docker-compose ps
 # Проверить логи
 docker-compose logs --tail=50
 
-# Проверить API
-curl http://localhost/api/streaming/test
+# Проверить API (обновлены порты)
+curl http://localhost:8080/api/streaming/test
 
 # Проверить внешний доступ
-curl http://$(curl -s ifconfig.me)/api/streaming/test
+curl http://$(curl -s ifconfig.me):8080/api/streaming/test
+
+# Проверить RTMP плейбек
+curl http://localhost:8081
 
 # Посмотреть использование ресурсов
 docker stats --no-stream
@@ -187,23 +190,23 @@ server {
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
     ssl_prefer_server_ciphers off;
     
-    # Проксирование к API
+    # Проксирование к API (обновлен порт)
     location / {
-        proxy_pass http://127.0.0.1:80;
+        proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # WebSocket поддержка (если нужно)
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
     }
-    
-    # RTMP плейбек
+
+    # RTMP плейбек (обновлен порт)
     location /live/ {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8081;
         proxy_set_header Host $host;
         
         # CORS для видео
@@ -513,3 +516,38 @@ curl -sSL https://raw.githubusercontent.com/coolhucker-stream/stream/main/deploy
 - 📞 **Отличная поддержка** - помогут решить любые вопросы
 
 **Рекомендуется для всех типов проектов - от стартапов до бизнеса! 🚀**
+
+---
+
+## 📌 Изменения портов для FirstVDS
+
+**Для избежания конфликтов с системными веб-серверами обновлены порты:**
+
+### 🔧 **Новые порты:**
+- **API сервис:** `8080:80` (был `80:80`) 
+- **RTMP плейбек:** `8081:8000` (был `8080:8000`)
+- **RTMP стрим:** `1935:1935` (без изменений)
+
+### 🌐 **Доступ к сервисам:**
+```bash
+# Web интерфейс
+http://YOUR_SERVER_IP:8080
+
+# API тестирование  
+http://YOUR_SERVER_IP:8080/api/streaming/test
+
+# RTMP стриминг
+rtmp://YOUR_SERVER_IP:1935/live/YOUR_STREAM_KEY
+
+# RTMP плейбек  
+http://YOUR_SERVER_IP:8081/live/YOUR_STREAM_KEY.m3u8
+```
+
+### ⚡ **При настройке домена и SSL:**
+Внешний Nginx будет проксировать:
+- `yourdomain.ru` → `127.0.0.1:8080` (API)
+- `yourdomain.ru/live/` → `127.0.0.1:8081` (RTMP плейбек)
+
+**После настройки домена доступ будет стандартный:**
+- https://yourdomain.ru (веб-интерфейс)
+- rtmp://yourdomain.ru:1935/live/YOUR_STREAM_KEY (стриминг)

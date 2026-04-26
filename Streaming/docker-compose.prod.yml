@@ -5,8 +5,7 @@ services:
     image: aplatonovnet/streaming-api:latest
     container_name: streaming_api_prod
     ports:
-      - "80:80"   # HTTP
-      - "443:443" # HTTPS (если настроен SSL)
+      - "8080:80"   # HTTP (изменен с 80 на 8080 для избежания конфликтов)
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
@@ -29,7 +28,7 @@ services:
     container_name: rtmp_server_prod
     ports:
       - "1935:1935"  # RTMP
-      - "8080:8000"  # HTTP для плейбека (избегаем конфликта с портом 80)
+      - "8081:8000"  # HTTP для плейбека (изменен с 8080 на 8081)
     environment:
       - DEV_MODE=false
       - API_URL=http://api:80
