@@ -1,24 +1,17 @@
-FROM ossrs/srs:5
+FROM node:20-bullseye-slim
+WORKDIR /usr/src/app
 
-WORKDIR /usr/local/srs
+# Copy package files first to leverage Docker layer caching
+COPY package*.json ./
 
-# Copy SRS config
-COPY srs.conf /usr/local/srs/conf/srs.conf
+# Install production dependencies (avoid lockfile sync issues in build context)
+RUN npm install --omit=dev --no-audit --no-fund
 
-# Fix line endings and set permissions, create directories, install tooling for debugging
-RUN tr -d '\r' < /usr/local/srs/conf/srs.conf > /usr/local/srs/conf/srs.tmp && \
-    mv /usr/local/srs/conf/srs.tmp /usr/local/srs/conf/srs.conf && \
-    chmod 644 /usr/local/srs/conf/srs.conf && \
-    # Create required directories with proper permissions
-    mkdir -p /usr/local/srs/objs/nginx/html/live && \
-    chmod -R 777 /usr/local/srs/objs/nginx/html && \
-    # Add test file
-    echo "SRS RTMP Server is running" > /usr/local/srs/objs/nginx/html/index.html && \
-    # Install curl and iputils-ping for runtime debugging inside container
-    apt-get update && apt-get install -y curl iputils-ping ca-certificates && rm -rf /var/lib/apt/lists/*
+# Copy application sources
+COPY . .
 
-# Expose ports
-EXPOSE 1935 8000 1985
+# Ensure media directory exists
+RUN mkdir -p /usr/src/app/media
 
-# Start SRS with debug logging
-CMD ./objs/srs -c conf/srs.conf
+EXPOSE 1935 8000
+CMD ["node", "rtmp-server.js"]

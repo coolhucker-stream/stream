@@ -90,7 +90,8 @@ namespace Streaming.Controllers
             if (string.IsNullOrEmpty(streamKey))
             {
                 _logger.LogWarning("Stream key is empty or null");
-                return new JsonResult(new { code = 1 }); // reject (non-zero)
+                // Return both fields: `code` for SRS and `valid` for NodeMediaServer
+                return new JsonResult(new { code = 1, valid = false }); // reject (non-zero)
             }
 
             // Get settings from service
@@ -100,12 +101,13 @@ namespace Streaming.Controllers
             if (settings == null || settings.StreamKey != streamKey)
             {
                 _logger.LogWarning($"Stream key validation failed. Expected: {settings?.StreamKey}, Got: {streamKey}");
-                return new JsonResult(new { code = 1 }); // reject
+                return new JsonResult(new { code = 1, valid = false }); // reject
             }
 
             _logger.LogInformation("Stream key validated successfully!");
             _streamService.SetStreamStatus(true);
-            return new JsonResult(new { code = 0 }); // success for SRS (0 = ok)
+            // Return both `code` and `valid` so both SRS and NodeMediaServer accept it
+            return new JsonResult(new { code = 0, valid = true }); // success
         }
 
         /// <summary>

@@ -34,14 +34,14 @@ namespace Streaming.Pages
             return Page();
         }
 
-        public IActionResult OnPost()
+        public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
             {
                 return new JsonResult(new { success = false, message = "Invalid data" });
             }
 
-            _streamService.UpdateSettings(Settings);
+            await _streamService.UpdateSettingsAsync(Settings);
             return new JsonResult(new { success = true });
         }
     }

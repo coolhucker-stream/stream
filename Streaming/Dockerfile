@@ -9,7 +9,8 @@ COPY ["Streaming.csproj", "."]
 RUN dotnet restore "./Streaming.csproj"
 COPY . .
 WORKDIR "/src/."
-RUN dotnet build "Streaming.csproj" -c Release -o /app/build
+# Disable creating an apphost during build to avoid copying executable permission issues in the container
+RUN dotnet build "Streaming.csproj" -c Release -o /app/build /p:UseAppHost=false
 
 FROM build AS publish
 RUN dotnet publish "Streaming.csproj" -c Release -o /app/publish /p:UseAppHost=false

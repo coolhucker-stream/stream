@@ -1,41 +1,53 @@
+version: "3.8"
+
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aplatonovnet/streaming-api:latest
+    container_name: streaming_api
+    ports:
+      - "5082:80" # host:container
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+    volumes:
+      - ./Streaming/data:/app/data
+    networks:
+      - streaming-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/api/streaming/test || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   rtmp-server:
     build:
       context: .
       dockerfile: Dockerfile.rtmp
+    image: aplatonovnet/streaming-rtmp:latest
+    container_name: rtmp_server
     ports:
       - "1935:1935"
       - "8000:8000"
-      - "1985:1985"
-    networks:
-      streaming-network:
-        aliases:
-          - rtmp-server
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - rtmp-data:/usr/local/srs/objs/nginx/html
     environment:
-      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DEV_MODE=false
+      - API_URL=http://api:80
+    volumes:
+      - ./media:/usr/src/app/media
+    depends_on:
+      - api
+    networks:
+      - streaming-network
     restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
 
 networks:
   streaming-network:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.20.0.0/16
-
-volumes:
-  rtmp-data:

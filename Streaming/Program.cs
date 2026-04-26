@@ -1,7 +1,6 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Streaming.Services;
 using Streaming.Models;
-using Streaming.Data;
-using Microsoft.EntityFrameworkCore;
 using Streaming;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,40 +20,28 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Add SQLite database (only for VideoStreams)
-builder.Services.AddDbContext<StreamingDbContext>(options =>
-{
-    var dbPath = builder.Environment.IsDevelopment() 
-        ? "Data Source=streaming.db"  // Local development - current directory
-        : "Data Source=/app/data/streaming.db";  // Docker environment
-    options.UseSqlite(dbPath);
-});
-
 // Configure streaming settings
 builder.Services.Configure<StreamingConfiguration>(
     builder.Configuration.GetSection("Streaming"));
 
+// Configure forwarded headers (for proxy / TLS termination)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Allow forwarded headers from any proxy (use carefully).
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // Register services
+builder.Services.AddSingleton<StreamSettingsStore>();
 builder.Services.AddScoped<StreamService>();   // StreamService (depends on StreamerService)
 builder.Services.AddSingleton<TelegramService>(); // TelegramService
 
 var app = builder.Build();
 
-// Ensure database is created and migrations are applied
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<StreamingDbContext>();
-        context.Database.Migrate();
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating the database.");
-    }
-}
+// Apply forwarded headers before anything that might check Scheme/IsHttps
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

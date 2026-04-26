@@ -1,22 +1,24 @@
 using Microsoft.Extensions.Options;
 using Streaming.Models;
 using System.IO;
-using Streaming.Data;
+using System.Threading.Tasks;
 
 namespace Streaming.Services
 {
     public class StreamService
     {
-        private readonly StreamingDbContext _context;
-        private readonly StreamSettings _settings;
+        private StreamSettings _settings;
+        private readonly StreamSettingsStore _settingsStore;
         private static VideoStream _stream;
         private DateTime? _streamStartTime;
 
-        public StreamService(StreamingDbContext context)
+        public StreamService(StreamSettingsStore settingsStore)
         {
-            _context = context;
-            // Get or create default settings
-            _settings = _context.StreamSettings.FirstOrDefault();
+            _settingsStore = settingsStore;
+
+            // Load settings from file-backed store (synchronously for constructor simplicity)
+            _settings = _settingsStore.GetAsync().GetAwaiter().GetResult();
+
             if (_settings == null)
             {
                 _settings = new StreamSettings
@@ -25,8 +27,7 @@ namespace Streaming.Services
                     StreamKey = "disco-bayern",
                     StreamTitle = "Live Stream"
                 };
-                _context.StreamSettings.Add(_settings);
-                _context.SaveChanges();
+                _settingsStore.UpdateAsync(_settings).GetAwaiter().GetResult();
             }
 
             if (_stream == null)
@@ -91,19 +92,30 @@ namespace Streaming.Services
             return _settings;
         }
 
-        public void UpdateSettings(StreamSettings settings)
+        public async Task UpdateSettingsAsync(StreamSettings settings)
         {
             _settings.StreamDescription = settings.StreamDescription;
             _settings.StreamKey = settings.StreamKey;
             _settings.StreamTitle = settings.StreamTitle;
-            
+
             // Update stream properties to reflect new settings
             _stream.Title = settings.StreamTitle;
             _stream.Description = settings.StreamDescription;
             _stream.StreamUrl = $"http://localhost:8000/live/{settings.StreamKey}.flv";
-            
-            _context.StreamSettings.Update(_settings);
-            _context.SaveChanges();
+
+            // Persist settings to file store
+            _settingsStore.UpdateAsync(_settings).GetAwaiter().GetResult();
+
+            // Also keep EF DB in sync if there is an existing record
+            var existing = await _settingsStore.GetAsync();
+
+            if (existing != null)
+            {
+                existing.StreamTitle = _settings.StreamTitle;
+                existing.StreamDescription = _settings.StreamDescription;
+                existing.StreamKey = _settings.StreamKey;
+                await _settingsStore.UpdateAsync(existing);
+            }
         }
     }
 }
