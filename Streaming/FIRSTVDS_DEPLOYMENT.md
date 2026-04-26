@@ -78,8 +78,76 @@ git clone https://github.com/coolhucker-stream/stream.git .
 # Создать необходимые директории
 mkdir -p data media logs certs nginx/ssl
 
+# Проверить наличие файлов конфигурации
+ls -la docker-compose*
+
 # Скопировать production конфигурацию
-cp docker-compose.prod.yml docker-compose.yml
+if [ -f "docker-compose.prod.yml" ]; then
+    cp docker-compose.prod.yml docker-compose.yml
+    echo "✅ Production конфигурация скопирована"
+else
+    echo "❌ Файл docker-compose.prod.yml не найден!"
+    echo "Доступные файлы Docker Compose:"
+    ls -la docker-compose*.yml || echo "Файлы docker-compose не найдены"
+
+    # Если файл отсутствует, создать базовую конфигурацию
+    cat > docker-compose.yml << 'DOCKER_EOF'
+version: "3.8"
+
+services:
+  api:
+    image: aplatonovnet/streaming-api:latest
+    container_name: streaming_api_prod
+    ports:
+      - "80:80"   # HTTP
+      - "443:443" # HTTPS (если настроен SSL)
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+    volumes:
+      - ./data:/app/data
+      - ./certs:/app/certs  # SSL сертификаты
+    networks:
+      - streaming-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/api/streaming/test || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  rtmp-server:
+    image: aplatonovnet/streaming-rtmp:latest
+    container_name: rtmp_server_prod
+    ports:
+      - "1935:1935"  # RTMP
+      - "8080:8000"  # HTTP для плейбека (избегаем конфликта с портом 80)
+    environment:
+      - DEV_MODE=false
+      - API_URL=http://api:80
+    volumes:
+      - ./media:/usr/src/app/media
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - streaming-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  streaming-network:
+    driver: bridge
+DOCKER_EOF
+    echo "✅ Базовая production конфигурация создана"
+fi
 
 # Проверить конфигурацию
 cat docker-compose.yml
@@ -478,6 +546,35 @@ ssh root@YOUR_IP
 
 # Запустить автоустановку
 curl -sSL https://raw.githubusercontent.com/coolhucker-stream/stream/main/deploy-firstvds.sh | bash
+```
+
+### 2️⃣ **Альтернатива - ручное развертывание:**
+```bash
+# Подключиться к серверу
+ssh root@YOUR_IP
+
+# Обновить систему и установить пакеты
+apt update && apt upgrade -y
+apt install curl wget git htop nano ufw -y
+
+# Установить Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh && rm get-docker.sh
+apt install docker-compose -y
+
+# Настроить файрвол
+ufw --force reset
+ufw allow 22/tcp 80/tcp 443/tcp 1935/tcp 8000/tcp
+ufw --force enable
+
+# Развернуть проект
+mkdir -p /opt/streaming && cd /opt/streaming
+git clone https://github.com/coolhucker-stream/stream.git .
+mkdir -p data media logs certs nginx/ssl
+
+# Настроить конфигурацию (см. шаг 6 выше)
+# Запустить сервисы
+docker-compose pull && docker-compose up -d
 ```
 
 ### 3️⃣ **Настроить домен:**
