@@ -47,9 +47,13 @@ app.UseForwardedHeaders();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    // TEMPORARILY DISABLED: app.UseHsts(); // Comment out HSTS for Docker deployment without SSL
+    // TEMPORARILY DISABLED for Docker deployment without SSL:
+    // app.UseHsts();
+    // app.UseHttpsRedirection();
 }
+
+// EXPLICITLY DISABLE HTTPS REDIRECTION FOR DOCKER DEPLOYMENT
+// app.UseHttpsRedirection(); // COMMENTED OUT - no HTTPS redirects
 
 // TEMPORARILY DISABLE HTTPS REDIRECTION FOR DOCKER DEPLOYMENT
 // This middleware will be re-enabled when SSL certificates are configured
@@ -84,6 +88,14 @@ app.Use(async (context, next) =>
     }
 });
 */
+
+// FORCE HTTP ONLY - NO HTTPS REDIRECTS
+app.Use(async (context, next) =>
+{
+    // Remove any HTTPS enforcement headers
+    context.Response.Headers.Remove("Strict-Transport-Security");
+    await next();
+});
 
 app.UseStaticFiles();
 

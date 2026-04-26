@@ -1,0 +1,10 @@
+@page
+@model Streaming.Pages.TestModel
+@{
+    ViewData["Title"] = "Test Page";
+}
+
+<h1>HTTP Test Page</h1>
+<p>If you see this page via HTTP, the redirect issue is fixed!</p>
+<p>Current URL: @Context.Request.Scheme://@Context.Request.Host@Context.Request.Path</p>
+<p>Time: @DateTime.Now</p>

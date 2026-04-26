@@ -1,5 +1,8 @@
 services:
   api:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: aplatonovnet/streaming-api:latest
     container_name: streaming_api_prod
     ports:
