@@ -2,52 +2,75 @@ version: "3.8"
 
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
     image: aplatonovnet/streaming-api:latest
-    container_name: streaming_api
+    container_name: streaming_api_prod
     ports:
-      - "5082:80" # host:container
+      - "8080:80"   # HTTP (изменен с 80 на 8080 для избежания конфликтов)
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
     volumes:
-      - ./Streaming/data:/app/data
+      - ./data:/app/data
+      - ./certs:/app/certs  # SSL сертификаты
     networks:
       - streaming-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:80/api/streaming/test || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      test: ["CMD-SHELL", "curl -f http://localhost:80/api/streaming/test || wget -q --tries=1 --spider http://localhost:80/api/streaming/test || exit 1"]
+      interval: 45s  # Увеличено
+      timeout: 15s   # Увеличено
+      retries: 5     # Увеличено
+      start_period: 60s  # Увеличено
 
   rtmp-server:
-    build:
-      context: .
-      dockerfile: Dockerfile.rtmp
     image: aplatonovnet/streaming-rtmp:latest
-    container_name: rtmp_server
+    container_name: rtmp_server_prod
     ports:
-      - "1935:1935"
-      - "8000:8000"
+      - "1935:1935"  # RTMP
+      - "8081:8000"  # HTTP для плейбека (изменен с 8080 на 8081)
     environment:
       - DEV_MODE=false
       - API_URL=http://api:80
     volumes:
       - ./media:/usr/src/app/media
     depends_on:
-      - api
+      api:
+        condition: service_started  # Изменено с service_healthy
     networks:
       - streaming-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      test: ["CMD-SHELL", "curl -f http://localhost:8000 || nc -z localhost 8000 || exit 1"]
+      interval: 45s  # Увеличено
+      timeout: 15s   # Увеличено
+      retries: 5     # Увеличено
+      start_period: 60s  # Увеличено
+
+  # Nginx reverse proxy (опционально, для SSL и статики)
+  nginx:
+    image: nginx:alpine
+    container_name: nginx_proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+      - ./static:/var/www/static:ro
+    depends_on:
+      - api
+      - rtmp-server
+    networks:
+      - streaming-network
+    restart: unless-stopped
 
 networks:
   streaming-network:
     driver: bridge
+
+volumes:
+  data:
+    driver: local
+  media:
+    driver: local
