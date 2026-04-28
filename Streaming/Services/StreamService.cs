@@ -12,12 +12,16 @@ namespace Streaming.Services
         private readonly StreamSettingsStore _settingsStore;
         private readonly IConfiguration _configuration;
         private static VideoStream _stream;
-        private DateTime? _streamStartTime;
+        private static DateTime? _streamStartTime;
+        private readonly string _playbackBaseUrl;
 
         public StreamService(StreamSettingsStore settingsStore, IConfiguration configuration)
         {
             _settingsStore = settingsStore;
             _configuration = configuration;
+
+            // Get playback URL from configuration
+            _playbackBaseUrl = _configuration["Streaming:PlaybackBaseUrl"] ?? "http://localhost:8081/live";
 
             // Load settings from file-backed store (synchronously for constructor simplicity)
             _settings = _settingsStore.GetAsync().GetAwaiter().GetResult();
@@ -35,8 +39,6 @@ namespace Streaming.Services
 
             if (_stream == null)
             {
-                var playbackBaseUrl = _configuration["Streaming:PlaybackBaseUrl"] ?? "http://localhost:8081/live";
-
                 _stream = new VideoStream
                 {
                     Id = 1,
@@ -44,12 +46,17 @@ namespace Streaming.Services
                     Description = _settings.StreamDescription,
                     StreamerName = "Streamer",
                     ThumbnailUrl = $"https://i.pravatar.cc/400?img",
-                    StreamUrl = $"{playbackBaseUrl}/{_settings.StreamKey}.m3u8",
+                    StreamUrl = $"{_playbackBaseUrl}/{_settings.StreamKey}/index.m3u8",
                     ViewerCount = 0,
                     Category = "Gaming",
                     IsLive = false,
                     StartedAt = _streamStartTime ?? DateTime.Now
                 };
+            }
+            else
+            {
+                // Update StreamUrl with current configuration on every service instantiation
+                _stream.StreamUrl = $"{_playbackBaseUrl}/{_settings.StreamKey}/index.m3u8";
             }
         }
 
@@ -104,11 +111,9 @@ namespace Streaming.Services
             _settings.StreamTitle = settings.StreamTitle;
 
             // Update stream properties to reflect new settings
-            var playbackBaseUrl = _configuration["Streaming:PlaybackBaseUrl"] ?? "http://localhost:8081/live";
-
             _stream.Title = settings.StreamTitle;
             _stream.Description = settings.StreamDescription;
-            _stream.StreamUrl = $"{playbackBaseUrl}/{settings.StreamKey}.m3u8";
+            _stream.StreamUrl = $"{_playbackBaseUrl}/{settings.StreamKey}/index.m3u8";
 
             // Persist settings to file store
             _settingsStore.UpdateAsync(_settings).GetAwaiter().GetResult();

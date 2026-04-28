@@ -138,8 +138,9 @@ namespace Streaming.Controllers
                 // Set stream as live
                 _streamService.SetStreamStatus(true);
 
-                // Construct stream URL using the HTTP-FLV mount
-                var streamUrl = $"http://localhost:8000/live/{settings.StreamKey}.flv";
+                // Get stream URL from VideoStream object (already properly configured)
+                var streamInfo = _streamService.GetStream();
+                var streamUrl = streamInfo.StreamUrl;
                 _logger.LogInformation($"Stream URL: {streamUrl}");
 
                 // Notify all clients
@@ -212,7 +213,7 @@ namespace Streaming.Controllers
                     isLive = stream.IsLive,
                     lastUpdated = lastUpdated,
                     streamKey = settings.StreamKey,
-                    streamUrl = stream.IsLive ? $"http://localhost:8000/live/{settings.StreamKey}.flv" : null
+                    streamUrl = stream.IsLive ? stream.StreamUrl : null
                 }
             });
         }
