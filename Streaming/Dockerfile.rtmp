@@ -1,6 +1,11 @@
 FROM node:20-bullseye-slim
 WORKDIR /usr/src/app
 
+# Install FFmpeg for HLS transcoding
+RUN apt-get update && \
+    apt-get install -y ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
 # Copy package files first to leverage Docker layer caching
 COPY package*.json ./
 

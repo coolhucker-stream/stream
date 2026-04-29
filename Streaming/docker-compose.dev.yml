@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aplatonovnet/streaming-api:latest
+    container_name: streaming_api_dev
+    ports:
+      - "127.0.0.1:8080:80"   # Bind only to localhost
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development  # Development environment
+      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+    volumes:
+      - ./data:/app/data
+      - ./media:/app/media
+      - ./certs:/app/certs
+    networks:
+      - streaming-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/api/streaming/test || wget -q --tries=1 --spider http://localhost:80/api/streaming/test || exit 1"]
+      interval: 45s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+  rtmp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.rtmp
+    image: aplatonovnet/streaming-rtmp:latest
+    container_name: rtmp_server_dev
+    ports:
+      - "1935:1935"  # RTMP
+      - "8081:8000"  # HTTP для плейбека
+    environment:
+      - DEV_MODE=true  # Development mode - no validation
+      - API_URL=http://api:80
+    volumes:
+      - ./media:/usr/src/app/media
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - streaming-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000 || nc -z localhost 8000 || exit 1"]
+      interval: 45s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+networks:
+  streaming-network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
+  media:
+    driver: local

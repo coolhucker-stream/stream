@@ -14,6 +14,17 @@ const config = {
     port: 8000,
     mediaroot: './media',
     allow_origin: '*'
+  },
+  trans: {
+    ffmpeg: '/usr/bin/ffmpeg',
+    tasks: [
+      {
+        app: 'live',
+        hls: true,
+        hlsFlags: '[hls_time=2:hls_list_size=3:hls_flags=delete_segments]',
+        hlsKeep: true // Keep segments for playback
+      }
+    ]
   }
 };
 
@@ -44,26 +55,30 @@ console.log('');
 
 nms.on('prePublish', async (id, StreamPath, args) => {
   console.log('');
-  console.log('?? [PRE-PUBLISH EVENT] New connection attempt');
-  console.log('?? Session ID:', id);
-  console.log('?? Stream Path:', StreamPath);
-  console.log('?? Arguments:', JSON.stringify(args));
-  
+  console.log('🎬 [PRE-PUBLISH EVENT] New connection attempt');
+  console.log('🆔 Session ID:', id);
+  console.log('📍 Stream Path:', StreamPath);
+  console.log('🔧 Arguments:', JSON.stringify(args));
+
   const streamKey = StreamPath.split('/').pop();
-  console.log('?? Extracted Stream Key:', streamKey);
-  console.log('?? Stream Key Length:', streamKey.length);
-  
+  console.log('🔑 Extracted Stream Key:', streamKey);
+  console.log('📏 Stream Key Length:', streamKey.length);
+
+  // Allow both /live/ and /hls/ apps in dev mode
+  const app = StreamPath.split('/')[1];
+  console.log('📱 App:', app);
+
   if (DEVELOPMENT_MODE) {
-    console.log('??  [DEV MODE] Skipping validation - accepting all streams');
-    console.log('? [ACCEPT] Stream allowed in development mode');
+    console.log('🔧 [DEV MODE] Skipping validation - accepting all streams');
+    console.log('✅ [ACCEPT] Stream allowed in development mode');
     return;
   }
-  
+
   try {
     const apiUrl = `${API_URL}/api/streaming/validate?key=${streamKey}`;
-    console.log('?? [VALIDATING] Sending POST request to:', apiUrl);
-    console.log('?? Request headers:', { 'Content-Type': 'application/json' });
-    
+    console.log('🔍 [VALIDATING] Sending POST request to:', apiUrl);
+    console.log('📋 Request headers:', { 'Content-Type': 'application/json' });
+
     const response = await axiosInstance.post(
       apiUrl,
       {},
@@ -73,51 +88,51 @@ nms.on('prePublish', async (id, StreamPath, args) => {
         }
       }
     );
-    
-    console.log('?? [API RESPONSE]', response.status, JSON.stringify(response.data));
-    
+
+    console.log('📡 [API RESPONSE]', response.status, JSON.stringify(response.data));
+
     if (!response.data.valid) {
-      console.log('? [REJECT] Invalid stream key');
+      console.log('❌ [REJECT] Invalid stream key');
       let session = nms.getSession(id);
       if (session) {
         session.reject();
       }
     } else {
-      console.log('? [ACCEPT] Valid stream key');
-      console.log('?? Username:', response.data.username);
-      console.log('?? Streamer ID:', response.data.streamerId);
+      console.log('✅ [ACCEPT] Valid stream key');
+      console.log('👤 Username:', response.data.username);
+      console.log('🆔 Streamer ID:', response.data.streamerId);
     }
   } catch (error) {
     console.error('');
-    console.error('? [ERROR] Validation failed!');
+    console.error('❌ [ERROR] Validation failed!');
     console.error('Error Type:', error.code || error.name);
     console.error('Error Message:', error.message);
-    
+
     if (error.response) {
       console.error('HTTP Status:', error.response.status);
       console.error('Response Headers:', JSON.stringify(error.response.headers, null, 2));
       console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
-      
+
       if (error.response.status === 400 && error.response.data.errors) {
         console.error('');
-        console.error('?? [VALIDATION ERRORS]:');
+        console.error('🚨 [VALIDATION ERRORS]:');
         for (const [field, messages] of Object.entries(error.response.data.errors)) {
           console.error(`   Field "${field}":`, messages.join(', '));
         }
         console.error('');
-        console.error('?? API expects required parameters that are missing');
+        console.error('💡 API expects required parameters that are missing');
       }
     } else if (error.code === 'ECONNREFUSED') {
-      console.error('??  API Server is not running!');
-      console.error('?? Solution: Start your web app with "dotnet run"');
-      console.error('?? Or use DEV_MODE=true to skip validation');
+      console.error('🚫 API Server is not running!');
+      console.error('💡 Solution: Start your web app with "dotnet run"');
+      console.error('🔧 Or use DEV_MODE=true to skip validation');
     } else if (error.code === 'ETIMEDOUT') {
-      console.error('??  API Server timeout - too slow response');
+      console.error('⏰ API Server timeout - too slow response');
     } else if (error.code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || error.message.includes('certificate')) {
-      console.error('??  SSL Certificate error - using self-signed certificate');
-      console.error('?? This should be handled automatically, but check API_URL');
+      console.error('🔒 SSL Certificate error - using self-signed certificate');
+      console.error('💡 This should be handled automatically, but check API_URL');
     }
-    
+
     let session = nms.getSession(id);
     if (session) {
       session.reject();
