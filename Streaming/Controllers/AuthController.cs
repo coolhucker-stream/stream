@@ -21,9 +21,39 @@ namespace Streaming.Controllers
             _hubContext = hubContext;
         }
 
+        [HttpGet]
         [HttpPost]
-        public async Task<IActionResult> Telegram([FromForm] TelegramAuthData authData)
+        [IgnoreAntiforgeryToken]
+        [Route("Telegram")]
+        public async Task<IActionResult> Telegram()
         {
+            // Read values from query first, then form as fallback
+            string GetValue(string key)
+            {
+                if (Request.Query.ContainsKey(key)) return Request.Query[key].ToString();
+                if (Request.HasFormContentType && Request.Form.ContainsKey(key)) return Request.Form[key].ToString();
+                return string.Empty;
+            }
+
+            if (!long.TryParse(GetValue("id"), out var id))
+            {
+                return BadRequest("Missing or invalid Telegram id");
+            }
+
+            var authDateStr = GetValue("auth_date");
+            var authDate = long.TryParse(authDateStr, out var adVal) ? adVal : 0L;
+
+            var authData = new TelegramAuthData
+            {
+                Id = id,
+                FirstName = GetValue("first_name"),
+                LastName = GetValue("last_name"),
+                Username = GetValue("username"),
+                PhotoUrl = GetValue("photo_url"),
+                AuthDate = authDate,
+                Hash = GetValue("hash")
+            };
+
             var botToken = _configuration["Telegram:BotToken"];
 
             if (string.IsNullOrEmpty(botToken))
@@ -40,10 +70,9 @@ namespace Streaming.Controllers
 
             if (status != ChatMemberStatus.Member &&
                 status != ChatMemberStatus.Administrator &&
-                status != ChatMemberStatus.Creator &&
-                status != ChatMemberStatus.Restricted)
+                status != ChatMemberStatus.Creator)
             {
-                return Redirect("/Error?message=You must subscribe to our Telegram group to access this site");
+                return Redirect($"/Error?message=You must subscribe to our Telegram group to access this site");
             }
 
             HttpContext.Session.SetString("TelegramUserId", authData.Id.ToString());
@@ -51,7 +80,7 @@ namespace Streaming.Controllers
             HttpContext.Session.SetString("TelegramFirstName", authData.FirstName);
             HttpContext.Session.SetString("TelegramStatus", ((int)status).ToString());
 
-            // Notify all clients about login
+            //Notify all clients about login
             await _hubContext.Clients.All.SendAsync("UserLoggedIn", new
             {
                 userId = authData.Id.ToString(),

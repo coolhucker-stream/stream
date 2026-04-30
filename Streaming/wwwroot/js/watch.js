@@ -1,6 +1,6 @@
 ﻿/**
  * Watch Page - Stream Player & Chat
- * Handles FLV.js live streaming and chat functionality
+ * Handles HLS (.m3u8) live streaming
  */
 
 // Global configuration
@@ -11,9 +11,11 @@ const STREAM_CONFIG = {
 };
 
 // Global state
-let flvPlayer = null;
-let flvJsLoadFailed = false;
+let player = null; // HLS player
+let playerType = null; // 'hls' or 'native'
 let debugInterval = null;
+window.isLive = false;
+window.streamUrl = window.streamUrl || '';
 
 /**
  * Chat functionality
@@ -24,34 +26,34 @@ const Chat = {
     connection: null,
     // ⭐ Original color scheme (diverse colors)
     colors: ['#FF6B6B', '#4ECDC4', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3', '#A8D8EA', '#FFAAA5'],
-    
+
     init() {
         this.messages = document.getElementById('chatMessages');
         this.input = document.getElementById('chatInput');
-        
+
         if (!this.messages || !this.input) {
             log.warn('Chat elements not found');
             return;
         }
-        
+
         // Get the shared SignalR connection
         window.getHubConnection().then(connection => {
             this.connection = connection;
         }).catch(err => {
             log.error('Failed to get SignalR connection:', err);
         });
-        
+
         this.scrollToBottom();
         this.setupEventListeners();
     },
-    
+
     setupEventListeners() {
         this.input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.sendMessage();
             }
         });
-        
+
         // Add click handler for send button
         const sendBtn = document.getElementById('chatSendBtn');
         if (sendBtn) {
@@ -60,17 +62,17 @@ const Chat = {
             });
         }
     },
-    
+
     scrollToBottom() {
         if (this.messages) {
             this.messages.scrollTop = this.messages.scrollHeight;
         }
     },
-    
+
     getRandomColor() {
         return this.colors[Math.floor(Math.random() * this.colors.length)];
     },
-    
+
     sendMessage() {
         if (!this.messages || !this.connection) {
             console.warn('Chat not initialized or not connected');
@@ -85,24 +87,24 @@ const Chat = {
             this.input.value = '';
         }
     },
-    
+
     addMessage(username, text, color) {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'chat-message';
-        
+
         const usernameSpan = document.createElement('span');
         usernameSpan.className = 'chat-username';
         usernameSpan.style.color = color;
         usernameSpan.textContent = username;
-        
+
         const textSpan = document.createElement('span');
         textSpan.className = 'chat-text';
         textSpan.textContent = text;
-        
+
         messageDiv.appendChild(usernameSpan);
         messageDiv.appendChild(textSpan);
         this.messages.appendChild(messageDiv);
-        
+
         this.scrollToBottom();
     },
 };
@@ -112,6 +114,7 @@ window.getHubConnection().then(connection => {
     // Setup watch page specific SignalR handlers
     connection.on("StreamStarted", (streamUrl) => {
         log.info("Received StreamStarted notification:", streamUrl);
+
         if (!window.isLive) {
             log.info("Stream was offline, now starting player");
             window.isLive = true;
@@ -121,7 +124,6 @@ window.getHubConnection().then(connection => {
             log.info("Stream already live, updating URL if needed");
             if (window.streamUrl !== streamUrl) {
                 window.streamUrl = streamUrl;
-                // TODO: Handle URL change if player is running
             }
         }
     });
@@ -175,29 +177,19 @@ const log = {
 /**
  * Handle flv.js load error
  */
-function handleFlvJsLoadError() {
-    flvJsLoadFailed = true;
-    log.error('Failed to load flv.js from CDN');
-    showFlvJsLoadError();
-}
-
-/**
- * Show flv.js load error message
- */
-function showFlvJsLoadError() {
+function showPlayerLoadError() {
     const statusElement = document.getElementById('streamStatus');
     const statusMessage = document.getElementById('statusMessage');
-    
+
     if (statusElement && window.isLive) {
         statusElement.style.display = 'block';
         statusElement.className = 'alert alert-danger mt-2';
-        statusMessage.innerHTML = 
-            '❌ Failed to load video player library (flv.js)<br/>' +
+        statusMessage.innerHTML =
+            '❌ Failed to load video player library (hls.js)<br/>' +
             '<small>' +
             '• Check your internet connection<br/>' +
-            '• CDN (cdn.jsdelivr.net) might be blocked<br/>' +
-            '• Try refreshing the page (Ctrl+F5)<br/>' +
-            '• Or use a VPN if CDN is blocked in your region' +
+            '• CDN might be blocked<br/>' +
+            '• Try refreshing the page (Ctrl+F5)' +
             '</small>';
     }
 }
@@ -210,194 +202,147 @@ function initializePlayer() {
     if (window.isLive) {
         const statusElement = document.getElementById('streamStatus');
         const statusMessage = document.getElementById('statusMessage');
-
-        // Check if flv.js loaded
-        if (typeof flvjs === 'undefined' || flvJsLoadFailed) {
-            log.error('Cannot initialize player - flvjs not loaded');
-            showFlvJsLoadError();
-            return;
-        }
-
-        // Check browser support
-        if (!flvjs.isSupported()) {
-            log.error('FLV.js is not supported in this browser');
-            
-            if (statusElement) {
-                statusElement.style.display = 'block';
-                statusElement.className = 'alert alert-danger mt-2';
-                statusMessage.innerHTML = 
-                    '❌ Your browser does not support live streaming<br/>' +
-                    '<small>Please try Chrome, Firefox, or Edge browser.</small>';
-            }
-            return;
-        }
-
         const videoElement = document.getElementById('streamPlayer');
-        
+
         // Show loading status
         if (statusElement) {
             statusElement.style.display = 'block';
             statusElement.className = 'alert alert-info mt-2';
             statusMessage.textContent = '⏳ Connecting to stream...';
         }
-        
-        log.info('Initializing FLV player...');
+
+        log.info('Initializing player...');
         log.debug('Video element:', videoElement);
         log.debug('Stream URL:', window.streamUrl);
-        
-        // Check if Web Workers are supported (but we'll disable them anyway for stability)
-        const workerSupported = typeof Worker !== 'undefined';
-        log.debug('Web Worker supported:', workerSupported);
-        
-        try {
-            // Create player configuration
-            const mediaDataSource = {
-                type: 'flv',
-                url: window.streamUrl,
-                isLive: true,
-                hasAudio: true,
-                hasVideo: true
-            };
-            
-            const config = {
-                enableWorker: false, // ⭐ Disabled to prevent "Class extends value undefined" error
-                enableStashBuffer: false, // Reduce latency for live streams
-                stashInitialSize: 128,
-                autoCleanupSourceBuffer: true,
-                lazyLoad: false,
-                lazyLoadMaxDuration: 0,
-                // Additional config for better compatibility
-                fixAudioTimestampGap: false,
-                accurateSeek: false
-            };
-            
-            log.debug('Player config:', config);
-            
-            flvPlayer = flvjs.createPlayer(mediaDataSource, config);
 
-            flvPlayer.attachMediaElement(videoElement);
-            log.success('Player attached to video element');
-            
-            // Setup event handlers
-            setupPlayerEvents(flvPlayer, statusElement, statusMessage);
-            
-            log.info('Loading stream...');
-            flvPlayer.load();
-            
-            // Try autoplay
-            attemptAutoplay(flvPlayer, statusElement, statusMessage);
-            
-            // Setup timeout detection
-            setupStreamTimeout(videoElement, statusElement, statusMessage);
-            
-            // Setup cleanup
-            setupCleanup(flvPlayer);
-            
-            // Setup debug logging
-            if (STREAM_CONFIG.debugLogsEnabled) {
-                setupDebugLogging(videoElement);
-            }
-
-        } catch (error) {
-            log.error('Failed to initialize player:', error);
-            log.error('Stack trace:', error.stack);
-            
-            // Check if it's the "Class extends value undefined" error from flv.js Worker
-            if (error.message && error.message.includes('Class extends')) {
-                log.error('═══════════════════════════════════════════');
-                log.error('🔧 WORKER ERROR DETECTED');
-                log.error('This is a known issue with flv.js Web Workers');
-                log.error('Workaround: enableWorker is now set to false');
-                log.error('═══════════════════════════════════════════');
-                
-                if (statusElement) {
-                    statusElement.style.display = 'block';
-                    statusElement.className = 'alert alert-danger mt-2';
-                    statusMessage.innerHTML = 
-                        '❌ FLV player initialization error<br/>' +
-                        '<small>' +
-                        'There was a compatibility issue with the video player.<br/>' +
-                        'Try refreshing the page (Ctrl+F5).<br/>' +
-                        'If the problem persists, try a different browser (Chrome or Firefox recommended).' +
-                        '</small>';
-                }
-            } else {
-                // Generic error handling
-                if (statusElement) {
-                    statusElement.style.display = 'block';
-                    statusElement.className = 'alert alert-danger mt-2';
-                    statusMessage.innerHTML = 
-                        '❌ Failed to load stream player<br/>' +
-                        '<small>' +
-                        'Error: ' + error.message + '<br/>' +
-                        'Please refresh the page and check console (F12)' +
-                        '</small>';
-                }
-            }
-        }
-    } else {
-        log.info('Not a live stream - using standard HTML5 video player');
+        initializeHlsPlayer(videoElement, statusElement, statusMessage);
     }
 }
 
 /**
- * Setup player event handlers
+ * Initialize HLS.js player for .m3u8 streams
  */
-function setupPlayerEvents(player, statusElement, statusMessage) {
-    // Loading complete
-    player.on(flvjs.Events.LOADING_COMPLETE, () => {
-        log.success('Stream loading complete');
-    });
-
-    // Media info received
-    player.on(flvjs.Events.MEDIA_INFO, (mediaInfo) => {
-        log.debug('Media Info:', mediaInfo);
+function initializeHlsPlayer(videoElement, statusElement, statusMessage) {
+    if (typeof Hls === 'undefined') {
+        log.error('HLS.js library not loaded');
         if (statusElement) {
-            statusElement.className = 'alert alert-success mt-2';
-            statusMessage.textContent = '✅ Stream connected! Loading video...';
-        }
-    });
-
-    // Statistics
-    player.on(flvjs.Events.STATISTICS_INFO, (stats) => {
-        log.debug('Statistics:', stats);
-    });
-
-    // Error handling
-    player.on(flvjs.Events.ERROR, (errorType, errorDetail, errorInfo) => {
-        log.error('════════════ FLV Player Error ════════════');
-        log.error('Error Type:', errorType);
-        log.error('Error Detail:', errorDetail);
-        log.error('Error Info:', errorInfo);
-        log.error('════════════════════════════════════════');
-        
-        if (statusElement) {
-            statusElement.style.display = 'block';
             statusElement.className = 'alert alert-danger mt-2';
-            
-            // Detailed error messages
-            if (errorType === flvjs.ErrorTypes.NETWORK_ERROR) {
-                if (errorDetail === flvjs.ErrorDetails.NETWORK_STATUS_CODE_INVALID) {
-                    statusMessage.innerHTML = 
-                        '❌ Stream not available (HTTP error).<br/>' +
-                        '<small>The streamer might not be broadcasting. Check RTMP server logs.</small>';
-                } else {
-                    statusMessage.innerHTML = 
-                        '❌ Network error occurred.<br/>' +
-                        '<small>Cannot connect to: <code>' + window.streamUrl + '</code></small>';
-                }
-            } else if (errorType === flvjs.ErrorTypes.MEDIA_ERROR) {
-                statusMessage.innerHTML = 
-                    '❌ Media error.<br/>' +
-                    '<small>The stream format might be incompatible.</small>';
-            } else {
-                statusMessage.innerHTML = 
-                    '❌ Stream error: ' + errorType + '<br/>' +
-                    '<small>Check browser console (F12) for details.</small>';
-            }
+            statusMessage.innerHTML = '❌ HLS player library failed to load<br/><small>Check your internet connection or try disabling ad-blocker.</small>';
         }
-    });
+        return;
+    }
+
+    if (Hls.isSupported()) {
+        log.info('Initializing HLS.js player...');
+        playerType = 'hls';
+        player = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            backBufferLength: 90
+        });
+
+        player.loadSource(window.streamUrl);
+        player.attachMedia(videoElement);
+
+        player.on(Hls.Events.MANIFEST_PARSED, function () {
+            log.success('HLS manifest loaded successfully');
+            if (statusElement) {
+                statusElement.className = 'alert alert-success mt-2';
+                statusMessage.textContent = '✅ Stream connected! Loading video...';
+            }
+
+            // Try autoplay
+            videoElement.play().then(() => {
+                log.success('Autoplay started');
+                setTimeout(() => {
+                    if (statusElement) {
+                        statusElement.style.display = 'none';
+                    }
+                }, 2000);
+            }).catch(err => {
+                log.warn('Autoplay failed (user interaction required):', err);
+                if (statusElement) {
+                    statusElement.className = 'alert alert-warning mt-2';
+                    statusMessage.innerHTML = '▶️ Click play to start the stream<br/><small>Your browser requires user interaction to play video.</small>';
+                }
+            });
+        });
+
+        player.on(Hls.Events.ERROR, function (event, data) {
+            log.error('════════════ HLS Player Error ════════════');
+            log.error('Error type:', data.type);
+            log.error('Error details:', data.details);
+            log.error('Fatal:', data.fatal);
+            log.error('════════════════════════════════════════');
+
+            if (data.fatal) {
+                if (statusElement) {
+                    statusElement.style.display = 'block';
+                    statusElement.className = 'alert alert-danger mt-2';
+
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            statusMessage.innerHTML = '❌ Network error - cannot load stream<br/><small>The streamer might not be broadcasting.</small>';
+                            // Try to recover
+                            player.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            statusMessage.innerHTML = '❌ Media error - stream format issue<br/><small>Attempting to recover...</small>';
+                            player.recoverMediaError();
+                            break;
+                        default:
+                            statusMessage.innerHTML = '❌ Fatal error occurred<br/><small>Cannot play stream. Try refreshing the page.</small>';
+                            player.destroy();
+                            break;
+                    }
+                }
+            }
+        });
+
+        // Setup cleanup
+        setupCleanup(player);
+
+        log.success('HLS player initialized');
+    }
+    // Native HLS support (Safari, iOS)
+    else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+        log.info('Using native HLS support (Safari/iOS)');
+        playerType = 'native';
+        videoElement.src = window.streamUrl;
+
+        videoElement.addEventListener('loadedmetadata', function () {
+            log.success('Stream metadata loaded');
+            if (statusElement) {
+                statusElement.className = 'alert alert-success mt-2';
+                statusMessage.textContent = '✅ Stream connected!';
+            }
+        });
+
+        videoElement.addEventListener('error', function () {
+            log.error('Native player error');
+            if (statusElement) {
+                statusElement.className = 'alert alert-danger mt-2';
+                statusMessage.innerHTML = '❌ Cannot play stream<br/><small>The streamer might not be broadcasting.</small>';
+            }
+        });
+
+        videoElement.play().catch(err => {
+            log.warn('Autoplay failed:', err);
+        });
+    }
+    else {
+        log.error('HLS not supported in this browser');
+        if (statusElement) {
+            statusElement.className = 'alert alert-danger mt-2';
+            statusMessage.innerHTML = '❌ Your browser does not support HLS streaming<br/><small>Please try Chrome, Firefox, Safari, or Edge.</small>';
+        }
+    }
 }
+
+/**
+// FLV support removed - project uses HLS only
+
+// FLV support removed - no FLV event handlers
 
 /**
  * Attempt autoplay
@@ -407,23 +352,21 @@ function attemptAutoplay(player, statusElement, statusMessage) {
     if (!player || typeof player.play !== 'function') {
         log.error('Cannot autoplay - player.play is not a function');
         log.error('Player object:', player);
-        log.error('typeof flvjs:', typeof flvjs);
-        
+
         if (statusElement) {
             statusElement.style.display = 'block';
             statusElement.className = 'alert alert-danger mt-2';
-            statusMessage.innerHTML = 
+            statusMessage.innerHTML =
                 '❌ Player initialization failed<br/>' +
-                '<small>flv.js library might not be loaded correctly. Try refreshing (Ctrl+F5)</small>';
+                '<small>Try refreshing the page (Ctrl+F5)</small>';
         }
         return;
     }
 
     try {
         const playPromise = player.play();
-        
-        // Some browsers don't return a promise from play()
-        if (playPromise !== undefined && playPromise !== null) {
+
+        if (playPromise && typeof playPromise.then === 'function') {
             playPromise.then(() => {
                 log.success('Stream started playing automatically');
                 if (statusElement) {
@@ -436,7 +379,7 @@ function attemptAutoplay(player, statusElement, statusMessage) {
                 if (statusElement) {
                     statusElement.style.display = 'block';
                     statusElement.className = 'alert alert-warning mt-2';
-                    statusMessage.innerHTML = 
+                    statusMessage.innerHTML =
                         '▶️ Click the play button to start watching<br/>' +
                         '<small>Browser autoplay policy prevented automatic start</small>';
                 }
@@ -447,13 +390,13 @@ function attemptAutoplay(player, statusElement, statusMessage) {
     } catch (error) {
         log.error('Error calling player.play():', error);
         log.error('Error stack:', error.stack);
-        
+
         if (statusElement) {
             statusElement.style.display = 'block';
             statusElement.className = 'alert alert-danger mt-2';
-            statusMessage.innerHTML = 
+            statusMessage.innerHTML =
                 '❌ Failed to start playback<br/>' +
-                '<small>Error: ' + error.message + '. Try clicking play button manually.</small>';
+                '<small>Error: ' + (error && error.message ? error.message : error) + '. Try clicking play button manually.</small>';
         }
     }
 }
@@ -468,7 +411,7 @@ function setupStreamTimeout(videoElement, statusElement, statusMessage) {
             if (statusElement) {
                 statusElement.style.display = 'block';
                 statusElement.className = 'alert alert-danger mt-2';
-                statusMessage.innerHTML = 
+                statusMessage.innerHTML =
                     '❌ Stream loading timeout<br/>' +
                     '<small>' +
                     '• Is RTMP server running? (<code>npm start</code>)<br/>' +
@@ -487,10 +430,14 @@ function setupCleanup(player) {
     window.addEventListener('beforeunload', () => {
         log.info('Cleaning up player...');
         try {
-            player.pause();
-            player.unload();
-            player.detachMediaElement();
-            player.destroy();
+            if (playerType === 'hls' && player && player.destroy) {
+                player.destroy();
+            } else if (playerType === 'flv' && player) {
+                player.pause();
+                player.unload();
+                player.detachMediaElement();
+                player.destroy();
+            }
         } catch (e) {
             log.error('Error during cleanup:', e);
         }
@@ -506,7 +453,7 @@ function setupDebugLogging(videoElement) {
             readyState: videoElement.readyState,
             paused: videoElement.paused,
             currentTime: videoElement.currentTime,
-            buffered: videoElement.buffered.length > 0 ? 
+            buffered: videoElement.buffered.length > 0 ?
                 videoElement.buffered.end(0) : 0
         });
     }, 1000);
@@ -530,9 +477,8 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('═══════════════════════════════════════════');
     console.log('IsLive:', window.isLive, '(type:', typeof window.isLive + ')');
     console.log('Stream URL:', window.streamUrl);
-    console.log('flvjs object:', typeof flvjs);
-    console.log('flvjs loaded:', typeof flvjs !== 'undefined');
-    
+    console.log('HLS.js loaded:', typeof Hls !== 'undefined');
+
     // ⭐ НОВОЕ: Детальная диагностика IsLive
     if (window.isLive === false || window.isLive === 'false') {
         console.warn('⚠️ IsLive is FALSE!');
@@ -548,47 +494,25 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('  5. Verify Stream Key is correct');
         console.warn('═══════════════════════════════════════════');
     } else {
-        console.log('✅ IsLive is TRUE - will use FLV player');
+        console.log('✅ IsLive is TRUE - will use HLS player');
     }
-    
-    if (typeof flvjs !== 'undefined') {
-        console.log('flvjs.isSupported():', flvjs.isSupported());
-        console.log('flvjs.version:', flvjs.version);
-    } else {
-        console.error('❌ flvjs is undefined - library failed to load!');
-        if (!flvJsLoadFailed) {
-            flvJsLoadFailed = true;
-            showFlvJsLoadError();
-        }
-    }
-    
+
+    console.log('HLS.js support:', typeof Hls !== 'undefined' && Hls.isSupported ? Hls.isSupported() : false);
+
     console.log('═══════════════════════════════════════════');
-    
-    // Wait longer for flv.js to fully initialize
-    // Some browsers need more time to load and parse the library
+
+    // Wait a short time for HLS.js to initialize (if needed)
     const initDelay = window.isLive ? 300 : 100; // 300ms for live streams
-    
-    console.log(`⏳ Waiting ${initDelay}ms for flv.js to initialize...`);
-    
+    console.log(`⏳ Waiting ${initDelay}ms for player libraries to initialize...`);
+
     setTimeout(() => {
         // Final check before initializing
-        if (window.isLive && typeof flvjs === 'undefined') {
-            console.error('❌ flvjs STILL undefined after waiting!');
-            console.error('This usually means:');
-            console.error('  1. CDN (cdn.jsdelivr.net) is blocked or slow');
-            console.error('  2. No internet connection');
-            console.error('  3. Browser extensions blocking the script');
-            console.error('');
-            console.error('🔧 Solutions:');
-            console.error('  1. Check browser console (F12) Network tab');
-            console.error('  2. Try refreshing with Ctrl+F5');
-            console.error('  3. Disable browser extensions temporarily');
-            console.error('  4. Use a VPN if CDN is blocked');
-            
-            showFlvJsLoadError();
+        if (window.isLive && typeof Hls === 'undefined') {
+            console.error('❌ HLS.js is undefined after waiting!');
+            showPlayerLoadError();
             return;
         }
-        
+
         initializePlayer();
         Chat.init();
         console.log('✅ Initialization complete');
@@ -600,6 +524,6 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 window.WatchPage = {
     initializePlayer,
-    handleFlvJsLoadError,
+    // legacy handler removed
     sendChatMessage: () => Chat.sendMessage()
 };

@@ -22,7 +22,7 @@ const config = {
         app: 'live',
         hls: true,
         hlsFlags: '[hls_time=2:hls_list_size=3:hls_flags=delete_segments]',
-        hlsKeep: true // Keep segments for playback
+        hlsKeep: true
       }
     ]
   }
@@ -30,11 +30,9 @@ const config = {
 
 const nms = new NodeMediaServer(config);
 
-// ????? ?????????? - ????????? ????????? (???? API ??????????)
 const DEVELOPMENT_MODE = process.env.DEV_MODE === 'true';
-const API_URL = process.env.API_URL || 'http://localhost:5082'; // ?????????? HTTP ????
+const API_URL = process.env.API_URL;
 
-// ????????? axios ??? ????????????? self-signed ???????????? (?????? ??? ??????????!)
 const axiosInstance = axios.create({
   httpsAgent: new https.Agent({
     rejectUnauthorized: false
@@ -43,13 +41,14 @@ const axiosInstance = axios.create({
 });
 
 console.log('==========================================');
-console.log('?? RTMP Server Configuration');
+console.log('[RTMP] RTMP Server Configuration');
 console.log('==========================================');
-console.log('?? RTMP Port: 1935');
-console.log('?? HTTP Port: 8000');
-console.log('?? Development Mode:', DEVELOPMENT_MODE ? 'ON (No validation)' : 'OFF (Strict validation)');
-console.log('?? API URL:', API_URL);
-console.log('??  SSL Verification: Disabled (Development only)');
+console.log(process.env.API_URL);
+console.log('[RTMP] RTMP Port: 1935');
+console.log('[RTMP] HTTP Port: 8000');
+console.log('[RTMP] Development Mode:', DEVELOPMENT_MODE ? 'ON (No validation)' : 'OFF (Strict validation)');
+console.log('[RTMP] API URL:', API_URL);
+console.log('[RTMP] SSL Verification: Disabled (Development only)');
 console.log('==========================================');
 console.log('');
 
@@ -68,14 +67,8 @@ nms.on('prePublish', async (id, StreamPath, args) => {
   const app = StreamPath.split('/')[1];
   console.log('📱 App:', app);
 
-  if (DEVELOPMENT_MODE) {
-    console.log('🔧 [DEV MODE] Skipping validation - accepting all streams');
-    console.log('✅ [ACCEPT] Stream allowed in development mode');
-    return;
-  }
-
   try {
-    const apiUrl = `${API_URL}/api/streaming/validate?key=${streamKey}`;
+    const apiUrl = `${API_URL}/api/streaming/validate?stream=${streamKey}`;
     console.log('🔍 [VALIDATING] Sending POST request to:', apiUrl);
     console.log('📋 Request headers:', { 'Content-Type': 'application/json' });
 
@@ -142,18 +135,13 @@ nms.on('prePublish', async (id, StreamPath, args) => {
 
 nms.on('postPublish', async (id, StreamPath, args) => {
   console.log('');
-  console.log('?? [POST-PUBLISH] Stream STARTED successfully!');
+  console.log('[POST-PUBLISH] Stream STARTED successfully!');
   const streamKey = StreamPath.split('/').pop();
-  console.log('?? Stream Key:', streamKey);
-  
-  if (DEVELOPMENT_MODE) {
-    console.log('??  [DEV MODE] Skipping start notification');
-    return;
-  }
+  console.log('[POST-PUBLISH] Stream Key:', streamKey);
   
   try {
-    const apiUrl = `${API_URL}/api/streaming/start?key=${streamKey}`;
-    console.log('?? [NOTIFYING] Sending start notification to:', apiUrl);
+    const apiUrl = `${API_URL}/api/streaming/start?stream=${streamKey}`;
+    console.log('[NOTIFYING] Sending start notification to:', apiUrl);
     
     const response = await axiosInstance.post(
       apiUrl,
@@ -165,11 +153,11 @@ nms.on('postPublish', async (id, StreamPath, args) => {
         }
       }
     );
-    console.log('? Start notification sent to API');
-    console.log('?? Response:', response.status, JSON.stringify(response.data));
+    console.log('[OK] Start notification sent to API');
+    console.log('[NOTIFY RESPONSE]:', response.status, JSON.stringify(response.data));
   } catch (error) {
     console.error('');
-    console.error('??  [WARNING] Start notification failed!');
+    console.error('[WARNING] Start notification failed!');
     console.error('Error:', error.message);
     
     if (error.response) {
@@ -182,11 +170,11 @@ nms.on('postPublish', async (id, StreamPath, args) => {
         for (const [field, messages] of Object.entries(error.response.data.errors)) {
           console.error(`   Field "${field}":`, messages.join(', '));
         }
-        console.error('?? API validation failed - check required parameters');
+        console.error('[API] validation failed - check required parameters');
       }
     }
     
-    console.error('?? Stream will continue anyway (notification is optional)');
+    console.error('[INFO] Stream will continue anyway (notification is optional)');
     console.error('');
   }
   console.log('');
@@ -194,18 +182,13 @@ nms.on('postPublish', async (id, StreamPath, args) => {
 
 nms.on('donePublish', async (id, StreamPath, args) => {
   console.log('');
-  console.log('?? [DONE-PUBLISH] Stream ENDED');
+  console.log('[DONE-PUBLISH] Stream ENDED');
   const streamKey = StreamPath.split('/').pop();
-  console.log('?? Stream Key:', streamKey);
-  
-  if (DEVELOPMENT_MODE) {
-    console.log('??  [DEV MODE] Skipping end notification');
-    return;
-  }
+  console.log('[DONE-PUBLISH] Stream Key:', streamKey);
   
   try {
-    const apiUrl = `${API_URL}/api/streaming/end?key=${streamKey}`;
-    console.log('?? [NOTIFYING] Sending end notification to:', apiUrl);
+    const apiUrl = `${API_URL}/api/streaming/end?stream=${streamKey}`;
+    console.log('[NOTIFYING] Sending end notification to:', apiUrl);
     
     const response = await axiosInstance.post(
       apiUrl,
@@ -217,11 +200,11 @@ nms.on('donePublish', async (id, StreamPath, args) => {
         }
       }
     );
-    console.log('? End notification sent to API');
-    console.log('?? Response:', response.status, JSON.stringify(response.data));
+    console.log('[OK] End notification sent to API');
+    console.log('[NOTIFY RESPONSE]:', response.status, JSON.stringify(response.data));
   } catch (error) {
     console.error('');
-    console.error('??  [WARNING] End notification failed!');
+    console.error('[WARNING] End notification failed!');
     console.error('Error:', error.message);
     
     if (error.response) {
@@ -230,19 +213,19 @@ nms.on('donePublish', async (id, StreamPath, args) => {
       
       if (error.response.status === 400 && error.response.data.errors) {
         console.error('');
-        console.error('?? [VALIDATION ERRORS]:');
+        console.error('[VALIDATION ERRORS]:');
         for (const [field, messages] of Object.entries(error.response.data.errors)) {
           console.error(`   Field "${field}":`, messages.join(', '));
         }
         console.error('');
-        console.error('?? This is likely a model binding issue in ASP.NET Core');
-        console.error('?? The "name" parameter might be marked as [Required]');
+        console.error('This is likely a model binding issue in ASP.NET Core');
+        console.error('The "name" parameter might be marked as [Required]');
       }
     } else if (error.code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || error.message.includes('certificate')) {
-      console.error('?? SSL Certificate issue - this is normal in development');
+      console.error('SSL Certificate issue - this is normal in development');
     }
     
-    console.error('?? Stream ended anyway (notification is optional)');
+    console.error('Stream ended anyway (notification is optional)');
     console.error('');
   }
   console.log('');
@@ -250,45 +233,21 @@ nms.on('donePublish', async (id, StreamPath, args) => {
 
 nms.on('error', (error) => {
   console.error('');
-  console.error('??? [RTMP SERVER ERROR] ???');
+  console.error('[RTMP SERVER ERROR]');
   console.error(error);
   console.error('');
 });
 
 nms.on('preConnect', (id, args) => {
-  console.log('?? [PRE-CONNECT] Client connecting...', id);
+  console.log('[PRE-CONNECT] Client connecting...', id);
 });
 
 nms.on('postConnect', (id, args) => {
-  console.log('? [POST-CONNECT] Client connected:', id);
+  console.log('[POST-CONNECT] Client connected:', id);
 });
 
 nms.on('doneConnect', (id, args) => {
-  console.log('?? [DONE-CONNECT] Client disconnected:', id);
+  console.log('[DONE-CONNECT] Client disconnected:', id);
 });
 
 nms.run();
-
-console.log('');
-console.log('==========================================');
-console.log('?? RTMP Server is RUNNING!');
-console.log('==========================================');
-console.log('?? Stream to: rtmp://localhost/live/{YOUR_STREAM_KEY}');
-console.log('??  Playback: http://localhost:8000/live/{YOUR_STREAM_KEY}.flv');
-console.log('');
-console.log('? Ready for OBS streaming!');
-console.log('?? Dashboard: https://localhost:7099/Dashboard');
-console.log('?? API Test: http://localhost:5082/api/streaming/test');
-console.log('');
-console.log('?? TIP: If API is not running, start in DEV mode:');
-console.log('   Windows: SET DEV_MODE=true && npm start');
-console.log('   Linux/Mac: DEV_MODE=true npm start');
-console.log('   Or: npm run dev');
-console.log('');
-console.log('??  NOTE: SSL certificate verification is disabled for development');
-console.log('   This allows self-signed certificates to work locally');
-console.log('');
-console.log('==========================================');
-console.log('Waiting for connections...');
-console.log('==========================================');
-console.log('');

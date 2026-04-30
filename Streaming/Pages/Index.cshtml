@@ -17,24 +17,19 @@ else
     <div class="watch-container">
         <div class="video-section">
             <div class="video-player">
-                @if (Model.Stream.IsLive)
-                {
-                    <!-- Live Stream Player (HTTP-FLV) -->
-                    <video id="streamPlayer" controls autoplay muted style="width: 100%; height: auto;">
-                        Your browser does not support the video tag.
-                    </video>
-                    <div id="streamStatus" class="alert alert-info mt-2" style="display: none;">
-                        <span id="statusMessage">Loading stream...</span>
-                    </div>
-                }
-                else
-                {
-                    <!-- VOD/Demo Video Player -->
-                    <video id="streamPlayer" controls autoplay>
-                        <source src="@Model.Stream.StreamUrl" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
-                }
+                <!-- Live Stream Player (HLS) -->
+                <video id="streamPlayer" controls autoplay muted style="width: 100%; height: auto;">
+                    Your browser does not support the video tag.
+                </video>
+                <div id="streamStatus" class="alert alert-info mt-2" style="display: none;">
+                    <span id="statusMessage">Loading stream...</span>
+                </div>
+                <!-- Stream Offline -->
+                @* <div class="alert alert-warning text-center p-5" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                        <i class="fas fa-video-slash fa-3x mb-3"></i>
+                        <h3>Stream Offline</h3>
+                        <p class="mb-0">The streamer is not currently live. Check back later!</p>
+                    </div> *@
             </div>
 
             <div class="stream-header">
@@ -131,70 +126,55 @@ else
 
     <!-- Watch page JavaScript - load first to initialize error handler -->
     <script>
-        // Pass server-side data to JavaScript BEFORE loading flv.js
+        // Pass server-side data to JavaScript BEFORE loading hls.js
         window.isLive = @(Model.Stream?.IsLive.ToString().ToLower() ?? "false");
         window.streamUrl = '@Model.Stream?.StreamUrl';
 
-        // Track flv.js loading state
-        window.flvJsLoadStartTime = Date.now();
-        window.flvJsLoaded = false;
+        // Track hls.js loading state
+        window.hlsLoadStartTime = Date.now();
+        window.hlsLoaded = false;
     </script>
 
-    <!-- flv.js для проигрывания HTTP-FLV стримов -->
-    <script src="https://cdn.jsdelivr.net/npm/flv.js@1.6.2/dist/flv.min.js"
-            onload="window.flvJsLoaded = true; console.log('✅ flv.js loaded successfully in ' + (Date.now() - window.flvJsLoadStartTime) + 'ms');"
-            onerror="window.WatchPage && window.WatchPage.handleFlvJsLoadError ? window.WatchPage.handleFlvJsLoadError() : console.error('❌ Failed to load flv.js and WatchPage is not ready');">
+    <!-- Hls.js for HLS (.m3u8) playback -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"
+            onload="window.hlsLoaded = true; console.log('✅ hls.js loaded successfully in ' + (Date.now() - window.hlsLoadStartTime) + 'ms');"
+            onerror="console.error('❌ Failed to load hls.js from CDN');">
     </script>
 
-    <!-- Timeout detector for flv.js loading -->
-    <script>
-        // If flv.js doesn't load within 5 seconds, show error
-        setTimeout(function() {
-            if (!window.flvJsLoaded && typeof flvjs === 'undefined') {
-                console.error('❌ flv.js loading timeout (5 seconds)');
-                console.error('CDN might be blocked or too slow');
-
-                // Show error in UI if WatchPage is ready
-                if (window.WatchPage && window.WatchPage.handleFlvJsLoadError) {
-                    window.WatchPage.handleFlvJsLoadError();
-                }
-            }
-        }, 5000);
-    </script>
-
+    <!-- HLS only - FLV removed -->
     <!-- Main watch page logic -->
     <script src="~/js/watch.js" asp-append-version="true"></script>
 
     <!-- Settings modal script -->
     <script>
         $(document).ready(function() {
-            // Load current settings when modal opens
-            $('#settingsModal').on('show.bs.modal', function() {
-                $.get('/Settings?format=json', function(data) {
-                    console.log('Loaded settings:', data);
-                    $('#StreamTitle').val(data.streamTitle);
-                    $('#StreamDescription').val(data.streamDescription);
-                    $('#StreamKey').val(data.streamKey);
-                }).fail(function(xhr, status, error) {
-                    console.error('Failed to load settings:', status, error);
-                });
-            });
+        // Load current settings when modal opens
+        $('#settingsModal').on('show.bs.modal', function() {
+        $.get('/Settings?format=json', function(data) {
+        console.log('Loaded settings:', data);
+        $('#StreamTitle').val(data.streamTitle);
+        $('#StreamDescription').val(data.streamDescription);
+        $('#StreamKey').val(data.streamKey);
+        }).fail(function(xhr, status, error) {
+        console.error('Failed to load settings:', status, error);
+        });
+        });
 
-            // Save settings
-            $('#saveSettingsBtn').click(function() {
-                var formData = $('#settingsForm').serialize();
-                $.post('/Settings', formData, function(response) {
-                    if (response.success) {
-                        $('#settingsModal').modal('hide');
-                        // Update the displayed title and description
-                        $('.stream-title-large').text($('#StreamTitle').val());
-                        $('.streamer-name-large').text($('#StreamDescription').val());
-                        alert('Settings saved successfully!');
-                    } else {
-                        alert('Error saving settings.');
-                    }
-                });
-            });
+        // Save settings
+        $('#saveSettingsBtn').click(function() {
+        var formData = $('#settingsForm').serialize();
+        $.post('/Settings', formData, function(response) {
+        if (response.success) {
+        $('#settingsModal').modal('hide');
+        // Update the displayed title and description
+        $('.stream-title-large').text($('#StreamTitle').val());
+        $('.streamer-name-large').text($('#StreamDescription').val());
+        alert('Settings saved successfully!');
+        } else {
+        alert('Error saving settings.');
+        }
+        });
+        });
         });
     </script>
 }

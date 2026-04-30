@@ -1,32 +1,6 @@
 version: '3.8'
 
 services:
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: aplatonovnet/streaming-api:latest
-    container_name: streaming_api_dev
-    ports:
-      - "127.0.0.1:8080:80"   # Bind only to localhost
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development  # Development environment
-      - ASPNETCORE_URLS=http://+:80
-      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
-    volumes:
-      - ./data:/app/data
-      - ./media:/app/media
-      - ./certs:/app/certs
-    networks:
-      - streaming-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:80/api/streaming/test || wget -q --tries=1 --spider http://localhost:80/api/streaming/test || exit 1"]
-      interval: 45s
-      timeout: 15s
-      retries: 5
-      start_period: 60s
-
   rtmp-server:
     build:
       context: .
@@ -38,7 +12,9 @@ services:
       - "8081:8000"  # HTTP для плейбека
     environment:
       - DEV_MODE=true  # Development mode - no validation
-      - API_URL=http://api:80
+      # When you want the RTMP container to call the API running on the host (e.g. Visual Studio),
+      # use host.docker.internal and the host port where the API is listening (here: 5082).
+      - API_URL=http://host.docker.internal:8080
     volumes:
       - ./media:/usr/src/app/media
     depends_on:
