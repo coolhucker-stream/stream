@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.HttpOverrides;
 using Streaming.Services;
 using Streaming.Models;
-using Streaming;
+using Streaming.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 

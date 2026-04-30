@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Streaming.Models;
 using Streaming.Services;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
+using Streaming.Hubs;
 
 namespace Streaming.Controllers
 {
@@ -105,7 +104,6 @@ namespace Streaming.Controllers
             }
 
             _logger.LogInformation("Stream key validated successfully!");
-            _streamService.SetStreamStatus(true);
             // Return both `code` and `valid` so both SRS and NodeMediaServer accept it
             return new JsonResult(new { code = 0, valid = true }); // success
         }
@@ -136,11 +134,15 @@ namespace Streaming.Controllers
                 }
 
                 // Set stream as live
-                _streamService.SetStreamStatus(true);
 
                 // Get stream URL from VideoStream object (already properly configured)
                 var streamInfo = _streamService.GetStream();
                 var streamUrl = streamInfo.StreamUrl;
+
+                // Add timestamp to prevent caching of previous stream
+                var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                streamUrl = $"{streamUrl}?t={timestamp}";
+
                 _logger.LogInformation($"Stream URL: {streamUrl}");
 
                 // Notify all clients
@@ -165,114 +167,8 @@ namespace Streaming.Controllers
         public async Task<IActionResult> OnStreamEnd([FromQuery] string stream)
         {
             _logger.LogInformation($"Stream end notification received for stream: {stream}");
-            _streamService.SetStreamStatus(false);
             await _hubContext.Clients.All.SendAsync("StreamEnded");
             return Ok(new { code = 0 });
-        }
-
-        /// <summary>
-        /// Test endpoint for API verification
-        /// </summary>
-        [HttpGet("test")]
-        public IActionResult Test()
-        {
-            return Ok(new
-            {
-                message = "Streaming API is working!",
-                timestamp = DateTime.Now,
-                version = "1.0.0",
-                environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-                endpoints = new[]
-                {
-                    "GET/POST /api/streaming/validate?key={streamKey}",
-                    "POST /api/streaming/start?key={streamKey}",
-                    "POST /api/streaming/end?key={streamKey}",
-                    "POST /api/streaming/update?key={streamKey}&viewers={count}",
-                    "GET /api/streaming/info/{streamerId}",
-                    "GET /api/streaming/status",
-                    "GET /api/streaming/test"
-                }
-            });
-        }
-
-        /// <summary>
-        /// Get current status of all streamers (diagnostics)
-        /// </summary>
-        [HttpGet("status")]
-        public IActionResult GetStatus()
-        {
-            var stream = _streamService.GetStream();
-            var lastUpdated = _streamService.GetStreamStatus();
-            var settings = _streamService.GetSettings();
-
-            return Ok(new
-            {
-                streamer = new
-                {
-                    id = stream.Id,
-                    isLive = stream.IsLive,
-                    lastUpdated = lastUpdated,
-                    streamKey = settings.StreamKey,
-                    streamUrl = stream.IsLive ? stream.StreamUrl : null
-                }
-            });
-        }
-
-        /// <summary>
-        /// Check user authentication status
-        /// </summary>
-        [HttpGet("auth/status")]
-        public IActionResult GetAuthStatus()
-        {
-            var userId = HttpContext.Session.GetString("TelegramUserId");
-            var username = HttpContext.Session.GetString("TelegramUsername");
-            var firstName = HttpContext.Session.GetString("TelegramFirstName");
-
-            return Ok(new
-            {
-                isAuthenticated = !string.IsNullOrEmpty(userId),
-                username,
-                firstName
-            });
-        }
-
-        /// <summary>
-        /// Viewer stop notification
-        /// Called when a viewer stops watching the stream
-        /// </summary>
-        [HttpPost("stop")]
-        [HttpGet("stop")]
-        public async Task<IActionResult> OnViewerStop([FromQuery] string? client_id, [FromQuery] string? ip, [FromQuery] string? stream)
-        {
-            _logger.LogInformation($"=== Viewer Stop Notification ===");
-            _logger.LogInformation($"Client ID: {client_id}");
-            _logger.LogInformation($"IP: {ip}");
-            _logger.LogInformation($"Stream: {stream}");
-
-            try
-            {
-                // Get current settings and stream info
-                var settings = _streamService.GetSettings();
-                var streamInfo = _streamService.GetStream();
-
-                // Only send updates if the stream is actually live
-                if (streamInfo.IsLive)
-                {
-                    // Notify clients about viewer count change (you might want to implement actual viewer counting)
-                    await _hubContext.Clients.All.SendAsync("StreamUpdated", new
-                    {
-                        viewers = Math.Max(0, streamInfo.ViewerCount - 1), // Decrease viewer count
-                        name = streamInfo.Title
-                    });
-                }
-
-                return Ok(new { code = 0 });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing viewer stop notification");
-                return StatusCode(500, new { code = 1, message = "Internal server error" });
-            }
         }
     }
 }

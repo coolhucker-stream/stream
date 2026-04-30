@@ -207,20 +207,6 @@ body {
   padding: 0 1rem;
 }
 
-.stream-card {
-  background: #18181b;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  border: 1px solid transparent;
-}
-
-.stream-card:hover {
-  transform: translateY(-8px);
-  border-color: #9147ff;
-  box-shadow: 0 8px 24px rgba(145, 71, 255, 0.3);
-}
-
 .stream-link {
   text-decoration: none;
   color: inherit;

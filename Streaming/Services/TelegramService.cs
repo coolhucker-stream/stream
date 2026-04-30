@@ -36,7 +36,7 @@ namespace Streaming.Services
         /// </summary>
         public async Task<ChatMemberStatus?> IsUserSubscribedToGroup(long userId)
         {
-            return ChatMemberStatus.Creator;
+            return ChatMemberStatus.Administrator;
             if (string.IsNullOrEmpty(_requiredGroupId))
             {
                 return null; // Если группа не указана, пропускаем проверку

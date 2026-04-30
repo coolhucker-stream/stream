@@ -1,8 +1,4 @@
-using Microsoft.Extensions.Options;
 using Streaming.Models;
-using System.IO;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 
 namespace Streaming.Services
 {
@@ -12,7 +8,6 @@ namespace Streaming.Services
         private readonly StreamSettingsStore _settingsStore;
         private readonly IConfiguration _configuration;
         private static VideoStream _stream;
-        private static DateTime? _streamStartTime;
         private readonly string _playbackBaseUrl;
 
         public StreamService(StreamSettingsStore settingsStore, IConfiguration configuration)
@@ -21,7 +16,7 @@ namespace Streaming.Services
             _configuration = configuration;
 
             // Get playback URL from configuration
-            _playbackBaseUrl = _configuration["Streaming:PlaybackBaseUrl"] ?? "http://localhost:8081/live";
+            _playbackBaseUrl = _configuration["Streaming:PlaybackBaseUrl"]!;
 
             // Load settings from file-backed store (synchronously for constructor simplicity)
             _settings = _settingsStore.GetAsync().GetAwaiter().GetResult();
@@ -41,16 +36,9 @@ namespace Streaming.Services
             {
                 _stream = new VideoStream
                 {
-                    Id = 1,
                     Title = _settings.StreamTitle,
                     Description = _settings.StreamDescription,
-                    StreamerName = "Streamer",
-                    ThumbnailUrl = $"https://i.pravatar.cc/400?img",
                     StreamUrl = $"{_playbackBaseUrl}/{_settings.StreamKey}/index.m3u8",
-                    ViewerCount = 0,
-                    Category = "Gaming",
-                    IsLive = false,
-                    StartedAt = _streamStartTime ?? DateTime.Now
                 };
             }
             else
@@ -65,40 +53,7 @@ namespace Streaming.Services
             return _stream;
         }
 
-        /// <summary>
-        /// Get current stream status for diagnostics
-        /// </summary>
-        public DateTime? GetStreamStatus()
-        {
-            return _stream.IsLive ? _streamStartTime : null;
-        }
-
-        /// <summary>
-        /// Set stream status (live/offline)
-        /// </summary>
-        public void SetStreamStatus(bool isLive)
-        {
-            _stream.IsLive = isLive;
-            if (isLive && !_streamStartTime.HasValue)
-            {
-                _streamStartTime = DateTime.Now;
-                _stream.StartedAt = DateTime.Now;
-            }
-            else if (!isLive)
-            {
-                _streamStartTime = null;
-                _stream.ViewerCount = 0; // Reset viewer count when stream ends
-            }
-        }
-
-        /// <summary>
-        /// Update viewer count
-        /// </summary>
-        public void UpdateViewerCount(int delta)
-        {
-            _stream.ViewerCount = Math.Max(0, _stream.ViewerCount + delta);
-        }
-
+       
         public StreamSettings GetSettings()
         {
             return _settings;
@@ -116,7 +71,7 @@ namespace Streaming.Services
             _stream.StreamUrl = $"{_playbackBaseUrl}/{settings.StreamKey}/index.m3u8";
 
             // Persist settings to file store
-            _settingsStore.UpdateAsync(_settings).GetAwaiter().GetResult();
+            await _settingsStore.UpdateAsync(_settings);
 
             // Also keep EF DB in sync if there is an existing record
             var existing = await _settingsStore.GetAsync();
