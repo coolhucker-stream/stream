@@ -7,7 +7,7 @@ using Telegram.Bot.Types.Enums;
 
 namespace Streaming.Pages
 {
-    [RequireTelegramSession(ChatMemberStatus.Administrator)]
+    [RequireSession(ChatMemberStatus.Administrator)]
     public class SettingsModel(StreamService streamService, IConfiguration configuration) : PageModel
     {
         [BindProperty]

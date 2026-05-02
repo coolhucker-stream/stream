@@ -4,7 +4,7 @@ using Telegram.Bot.Types.Enums;
 
 namespace Streaming.Filters;
 
-public class RequireTelegramSessionAttribute(params ChatMemberStatus[] allowedStatuses) : Attribute, IPageFilter
+public class RequireSessionAttribute(params ChatMemberStatus[] allowedStatuses) : Attribute, IPageFilter
 {
     private readonly ChatMemberStatus[] _allowedStatuses = allowedStatuses;
 

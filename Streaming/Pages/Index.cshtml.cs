@@ -6,7 +6,7 @@ using Streaming.Filters;
 
 namespace Streaming.Pages;
 
-[RequireTelegramSession]
+[RequireSession]
 public class WatchModel(StreamService streamService) : PageModel
 {
     public VideoStream? Stream { get; set; }

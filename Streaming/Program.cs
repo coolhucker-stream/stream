@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.HttpOverrides;
 using Streaming.Services;
-using Streaming.Models;
 using Streaming.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,10 +21,6 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
-
-// Configure streaming settings
-builder.Services.Configure<StreamingConfiguration>(
-    builder.Configuration.GetSection("Streaming"));
 
 // Configure forwarded headers (for proxy / TLS termination)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
