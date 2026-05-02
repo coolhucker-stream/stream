@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Streaming.Filters;
 using Streaming.Models;
 using Streaming.Services;
+using Telegram.Bot.Types.Enums;
 
 namespace Streaming.Pages
 {
+    [RequireTelegramSession(ChatMemberStatus.Administrator)]
     public class SettingsModel : PageModel
     {
         private readonly StreamService _streamService;
@@ -17,21 +20,15 @@ namespace Streaming.Pages
         [BindProperty]
         public StreamSettings Settings { get; set; }
 
-        public IActionResult OnGet()
+        public async Task<IActionResult> OnGet()
         {
-            if (Request.Query["format"].ToString() == "json")
+            var settings = await _streamService.GetSettings();
+            return new JsonResult(new
             {
-                var settings = _streamService.GetSettings();
-                return new JsonResult(new
-                {
-                    streamTitle = settings.StreamTitle,
-                    streamDescription = settings.StreamDescription,
-                    streamKey = settings.StreamKey
-                });
-            }
-
-            Settings = _streamService.GetSettings();
-            return Page();
+                streamTitle = settings.StreamTitle,
+                streamDescription = settings.StreamDescription,
+                streamKey = settings.StreamKey
+            });
         }
 
         public async Task<IActionResult> OnPostAsync()

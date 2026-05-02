@@ -1114,9 +1114,49 @@ body {
     flex-direction: column;
   }
 
-  .action-buttons a,
-  .action-buttons button {
-    width: 100%;
-    text-align: center;
+     .action-buttons a,
+     .action-buttons button {
+       width: 100%;
+       text-align: center;
+     }
   }
-}
+
+  /* Modal Styles */
+  .modal-content {
+     background: #ffffff;
+     color: #1f1f23;
+  }
+
+  .modal-header {
+     background: #f8f9fa;
+     border-bottom: 1px solid #dee2e6;
+  }
+
+  .modal-header .btn-close {
+     opacity: 0.8;
+  }
+
+  .modal-header .btn-close:hover {
+     opacity: 1;
+  }
+
+  /* Improve form label contrast in modals */
+  .modal .form-label {
+     color: #212529;
+     font-weight: 600;
+  }
+
+  .modal .form-control {
+     border-color: #dee2e6;
+     color: #212529;
+     background-color: #ffffff;
+  }
+
+  .modal .form-control:focus {
+     border-color: #9147ff;
+     box-shadow: 0 0 0 0.2rem rgba(145, 71, 255, 0.25);
+  }
+
+  .modal .form-control::placeholder {
+     color: #6c757d;
+  }

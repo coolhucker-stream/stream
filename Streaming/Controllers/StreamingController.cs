@@ -94,7 +94,7 @@ namespace Streaming.Controllers
             }
 
             // Get settings from service
-            var settings = _streamService.GetSettings();
+            var settings = await _streamService.GetSettings();
             _logger.LogInformation($"Expected stream key: {settings?.StreamKey}");
 
             if (settings == null || settings.StreamKey != streamKey)
@@ -136,7 +136,7 @@ namespace Streaming.Controllers
                 // Set stream as live
 
                 // Get stream URL from VideoStream object (already properly configured)
-                var streamInfo = _streamService.GetStream();
+                var streamInfo = await _streamService.GetStream();
                 var streamUrl = streamInfo.StreamUrl;
 
                 // Add timestamp to prevent caching of previous stream

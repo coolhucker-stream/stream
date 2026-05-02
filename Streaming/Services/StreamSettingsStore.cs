@@ -1,74 +1,31 @@
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Caching.Distributed;
 using Streaming.Models;
-using System.IO;
+using System.Text.Json;
 
 namespace Streaming.Services
 {
-    public class StreamSettingsStore
+    public class StreamSettingsStore(IDistributedCache cache)
     {
-        private readonly string _path;
-        private readonly SemaphoreSlim _lock = new(1, 1);
+        private const string CacheKey = "stream_settings";
 
-        public StreamSettingsStore(IHostEnvironment env)
+        public async Task<StreamSettings?> GetAsync()
         {
-            var dir = Path.Combine(env.ContentRootPath, "data");
-            Directory.CreateDirectory(dir);
-            _path = Path.Combine(dir, "streamsettings.json");
-        }
-
-        public async Task<StreamSettings> GetAsync()
-        {
-            await _lock.WaitAsync();
-            try
+            var cached = await cache.GetStringAsync(CacheKey);
+            if (!string.IsNullOrEmpty(cached))
             {
-                if (!File.Exists(_path))
-                {
-                    var @default = new StreamSettings
-                    {
-                        StreamTitle = "Live Stream",
-                        StreamDescription = "Welcome to the stream!",
-                        StreamKey = "disco-bayern"
-                    };
-                    await WriteInternalAsync(@default);
-                    return @default;
-                }
+                return JsonSerializer.Deserialize<StreamSettings>(cached)
+                    ?? throw new InvalidOperationException("Failed to deserialize cached settings.");
+            }
 
-                var json = await File.ReadAllTextAsync(_path);
-                var settings = JsonSerializer.Deserialize<StreamSettings>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                return settings ?? throw new InvalidOperationException("Failed to deserialize stream settings.");
-            }
-            finally
-            {
-                _lock.Release();
-            }
+            return null;
         }
 
         public async Task UpdateAsync(StreamSettings settings)
         {
-            await _lock.WaitAsync();
-            try
-            {
-                await WriteInternalAsync(settings);
-            }
-            finally
-            {
-                _lock.Release();
-            }
-        }
-
-        private async Task WriteInternalAsync(StreamSettings settings)
-        {
-            var temp = _path + ".tmp";
-            var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(temp, json);
-
-            if (File.Exists(_path))
-                File.Replace(temp, _path, null);
-            else
-                File.Move(temp, _path);
+            await cache.SetStringAsync(
+                CacheKey,
+                JsonSerializer.Serialize(settings),
+                new DistributedCacheEntryOptions());
         }
     }
 }

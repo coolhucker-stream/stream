@@ -6,14 +6,14 @@ using Streaming.Filters;
 
 namespace Streaming.Pages;
 
- [RequireTelegramSession]
+[RequireTelegramSession]
 public class WatchModel(StreamService streamService) : PageModel
 {
     public VideoStream? Stream { get; set; }
 
-    public IActionResult OnGet()
+    public async Task<IActionResult> OnGet()
     {
-        Stream = streamService.GetStream();
+        Stream = await streamService.GetStream();
         return Page();
     }
 }

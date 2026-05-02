@@ -12,6 +12,9 @@ builder.Services.AddControllers(); // Enable API controllers
 // Add SignalR
 builder.Services.AddSignalR();
 
+// Add distributed memory cache for stream settings
+builder.Services.AddDistributedMemoryCache();
+
 // Add session support
 builder.Services.AddSession(options =>
 {
