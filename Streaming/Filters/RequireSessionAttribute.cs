@@ -17,6 +17,11 @@ public class RequireSessionAttribute(params ChatMemberStatus[] allowedStatuses) 
         {
             context.Result = new RedirectResult("/Auth/Login");
         }
+        else if (int.Parse(session.GetString("UserStatus")!) < 0)
+        {
+            // Пользователь ждет подтверждения администратором
+            context.Result = new RedirectResult("/Pending");
+        }
         else if (_allowedStatuses.Any() && !_allowedStatuses.Contains((ChatMemberStatus)int.Parse(session.GetString("UserStatus")!)))
         {
             context.Result = new RedirectResult("/Auth/Login");

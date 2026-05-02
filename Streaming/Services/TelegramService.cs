@@ -1,15 +1,8 @@
 ﻿using Telegram.Bot;
-using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Requests;
 using Streaming.Models;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Collections.Generic;
-using System.Threading;
-using Telegram.Bot.Exceptions;
-using System.Diagnostics;
 
 namespace Streaming.Services
 {
@@ -36,7 +29,6 @@ namespace Streaming.Services
         /// </summary>
         public async Task<ChatMemberStatus?> IsUserSubscribedToGroup(long userId)
         {
-            return ChatMemberStatus.Administrator;
             if (string.IsNullOrEmpty(_requiredGroupId))
             {
                 return null; // Если группа не указана, пропускаем проверку

@@ -1,7 +1,4 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
-using Streaming.Hubs;
 using Streaming.Models;
 using Streaming.Services;
 using Telegram.Bot.Types.Enums;
@@ -56,18 +53,9 @@ namespace Streaming.Controllers
                 return BadRequest("Invalid Telegram authentication data");
             }
 
-            var status = await telegramService.IsUserSubscribedToGroup(authData.Id);
-
-            if (status != ChatMemberStatus.Member &&
-                status != ChatMemberStatus.Administrator &&
-                status != ChatMemberStatus.Creator)
-            {
-                return Redirect("/Error?message=You must subscribe to our Telegram group to access this site");
-            }
-
             HttpContext.Session.SetString("UserId", authData.Id.ToString());
             HttpContext.Session.SetString("Username", authData.Username);
-            HttpContext.Session.SetString("UserStatus", ((int)status).ToString());
+            HttpContext.Session.SetString("UserStatus", "-1");
 
             return Redirect("/");
         }
@@ -77,7 +65,6 @@ namespace Streaming.Controllers
         public IActionResult Logout()
         {
             HttpContext.Session.Clear();
-
             return Redirect("/Auth/Login");
         }
 
@@ -87,7 +74,7 @@ namespace Streaming.Controllers
         {
             HttpContext.Session.SetString("UserId", Guid.NewGuid().ToString());
             HttpContext.Session.SetString("Username", "John Rambo");
-            HttpContext.Session.SetString("UserStatus", ((int)ChatMemberStatus.Administrator).ToString());
+            HttpContext.Session.SetString("UserStatus", "-1");
 
             return Redirect("/");
         }
