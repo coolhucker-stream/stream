@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Streaming.Models;
 using Streaming.Services;
-using Telegram.Bot.Types.Enums;
 
 namespace Streaming.Controllers
 {
@@ -55,25 +54,6 @@ namespace Streaming.Controllers
 
             HttpContext.Session.SetString("UserId", authData.Id.ToString());
             HttpContext.Session.SetString("Username", authData.Username);
-            HttpContext.Session.SetString("UserStatus", "-1");
-
-            return Redirect("/");
-        }
-
-        [HttpPost]
-        [Route("Logout")]
-        public IActionResult Logout()
-        {
-            HttpContext.Session.Clear();
-            return Redirect("/Auth/Login");
-        }
-
-        [HttpGet]
-        [Route("TestLogin")]
-        public IActionResult TestLogin()
-        {
-            HttpContext.Session.SetString("UserId", Guid.NewGuid().ToString());
-            HttpContext.Session.SetString("Username", "John Rambo");
             HttpContext.Session.SetString("UserStatus", "-1");
 
             return Redirect("/");
