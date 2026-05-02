@@ -29,7 +29,7 @@ namespace Streaming.Services
                 {
                     StreamTitle = "My Live Stream",
                     StreamDescription = "This is a live stream.",
-                    StreamKey = Guid.NewGuid().ToString("N").Substring(0, 8)
+                    StreamKey = "disco-bayern"
                 };
 
                 await settingsStore.UpdateAsync(settings);

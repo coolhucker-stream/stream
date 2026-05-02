@@ -52,40 +52,6 @@ if (!app.Environment.IsDevelopment())
 // Enable HTTPS redirection for production with SSL
 app.UseHttpsRedirection();
 
-// TEMPORARILY DISABLE HTTPS REDIRECTION FOR DOCKER DEPLOYMENT
-// This middleware will be re-enabled when SSL certificates are configured
-
-/*
-// HTTPS Redirection - disable for API endpoints
-app.Use(async (context, next) =>
-{
-    // Allow HTTP for API endpoints (for RTMP server)
-    if (context.Request.Path.StartsWithSegments("/api"))
-    {
-        await next();
-    }
-    else
-    {
-        // Force HTTPS for other requests in production
-        if (!context.Request.IsHttps && app.Environment.IsDevelopment())
-        {
-            // Allow HTTP in Development
-            await next();
-        }
-        else if (!context.Request.IsHttps && !app.Environment.IsDevelopment())
-        {
-            // Redirect to HTTPS in Production
-            var httpsUrl = $"https://{context.Request.Host}{context.Request.Path}{context.Request.QueryString}";
-            context.Response.Redirect(httpsUrl, permanent: true);
-        }
-        else
-        {
-            await next();
-        }
-    }
-});
-*/
-
 app.UseStaticFiles();
 
 app.UseSession(); // Enable session middleware
