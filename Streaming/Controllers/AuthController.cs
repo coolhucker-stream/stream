@@ -18,7 +18,6 @@ namespace Streaming.Controllers
         [Route("Telegram")]
         public async Task<IActionResult> Telegram()
         {
-            // Read values from query first, then form as fallback
             string GetValue(string key)
             {
                 if (Request.Query.ContainsKey(key)) return Request.Query[key].ToString();
@@ -63,12 +62,12 @@ namespace Streaming.Controllers
                 status != ChatMemberStatus.Administrator &&
                 status != ChatMemberStatus.Creator)
             {
-                return Redirect($"/Error?message=You must subscribe to our Telegram group to access this site");
+                return Redirect("/Error?message=You must subscribe to our Telegram group to access this site");
             }
 
-            HttpContext.Session.SetString("TelegramUserId", authData.Id.ToString());
-            HttpContext.Session.SetString("TelegramUsername", authData.Username);
-            HttpContext.Session.SetString("TelegramStatus", ((int)status).ToString());
+            HttpContext.Session.SetString("UserId", authData.Id.ToString());
+            HttpContext.Session.SetString("Username", authData.Username);
+            HttpContext.Session.SetString("UserStatus", ((int)status).ToString());
 
             return Redirect("/");
         }
@@ -86,9 +85,9 @@ namespace Streaming.Controllers
         [Route("TestLogin")]
         public IActionResult TestLogin()
         {
-            HttpContext.Session.SetString("TelegramUserId", Guid.NewGuid().ToString());
-            HttpContext.Session.SetString("TelegramUsername", "John Rambo");
-            HttpContext.Session.SetString("TelegramStatus", ((int)ChatMemberStatus.Administrator).ToString());
+            HttpContext.Session.SetString("UserId", Guid.NewGuid().ToString());
+            HttpContext.Session.SetString("Username", "John Rambo");
+            HttpContext.Session.SetString("UserStatus", ((int)ChatMemberStatus.Administrator).ToString());
 
             return Redirect("/");
         }

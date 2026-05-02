@@ -6,6 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Бавария Мюнхен</title>
+    <link rel="icon" type="image/x-icon" href="~/favicon.png" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Streaming.styles.css" asp-append-version="true" />
@@ -24,11 +25,11 @@
                     <span class="logo-text">Дискотека Бавария</span>
                 </a>
                 <div class="d-flex">
-                    @if (!string.IsNullOrWhiteSpace(Context.Session.GetString("TelegramUsername")))
+                    @if (!string.IsNullOrWhiteSpace(Context.Session.GetString("Username")))
                     {
                         <div>
-                            <span class="text-light me-2">@Context.Session.GetString("TelegramUsername")</span>
-                            @if (int.Parse(Context.Session.GetString("TelegramStatus")!) == (int)ChatMemberStatus.Administrator)
+                            <span class="text-light me-2">@Context.Session.GetString("Username")</span>
+                            @if (int.Parse(Context.Session.GetString("UserStatus")!) == (int)ChatMemberStatus.Administrator)
                             {
                                 <a href="/Settings" class="btn btn-outline-light btn-sm me-2">
                                     <i class="fas fa-cog"></i> Settings

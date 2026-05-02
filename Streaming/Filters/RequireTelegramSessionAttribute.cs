@@ -13,11 +13,11 @@ public class RequireTelegramSessionAttribute(params ChatMemberStatus[] allowedSt
     public void OnPageHandlerExecuting(PageHandlerExecutingContext context)
     {
         var session = context.HttpContext.Session;
-        if (string.IsNullOrWhiteSpace(session.GetString("TelegramUserId")))
+        if (string.IsNullOrWhiteSpace(session.GetString("UserId")))
         {
             context.Result = new RedirectResult("/Auth/Login");
         }
-        else if (_allowedStatuses.Any() && !_allowedStatuses.Contains((ChatMemberStatus)int.Parse(session.GetString("TelegramStatus")!)))
+        else if (_allowedStatuses.Any() && !_allowedStatuses.Contains((ChatMemberStatus)int.Parse(session.GetString("UserStatus")!)))
         {
             context.Result = new RedirectResult("/Auth/Login");
         }

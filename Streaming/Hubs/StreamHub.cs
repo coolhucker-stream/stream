@@ -23,7 +23,7 @@ namespace Streaming.Hubs
         public async Task SendMessage(string message)
         {
             var httpContext = Context.GetHttpContext();
-            var userName = httpContext?.Session.GetString("TelegramUsername");
+            var userName = httpContext?.Session.GetString("Username");
             
             await Clients.All.SendAsync("ReceiveMessage", userName, message);
         }
