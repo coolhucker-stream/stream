@@ -1,0 +1,144 @@
+@page
+@model Streaming.Pages.PendingModel
+@{
+    ViewData["Title"] = "Waiting for Admin Approval";
+}
+
+<link rel="stylesheet" href="~/css/pending.css" asp-append-version="true" />
+
+<div class="pending-container">
+    <div class="pending-card">
+        <div class="pending-icon" id="statusIcon">⏳</div>
+        
+        <div class="loading-spinner" id="loadingSpinner"></div>
+
+        <h1 class="pending-title" id="statusTitle">Waiting for Approval</h1>
+
+        <p class="pending-description">
+            Your account is pending administrator approval.<br>
+            <small>We're checking your status automatically...</small>
+        </p>
+
+        <div class="status-badge" id="statusBadge">
+            🔄 Pending Review
+        </div>
+
+        <div class="status-details">
+            <div class="status-detail-row">
+                <span class="status-detail-label">Current Status:</span>
+                <span class="status-detail-value" id="currentStatus">Pending</span>
+            </div>
+            <div class="status-detail-row">
+                <span class="status-detail-label">Last Check:</span>
+                <span class="status-detail-value" id="lastCheck">Just now</span>
+            </div>
+            <div class="status-detail-row">
+                <span class="status-detail-label">Auto-refresh:</span>
+                <span class="status-detail-value">Every 5 seconds</span>
+            </div>
+        </div>
+
+        <div class="tips-section">
+            <strong>💡 What to do while you wait?</strong>
+            <ul>
+                <li>The admin will review your account shortly</li>
+                <li>This page automatically checks your status</li>
+                <li>You'll be redirected once approved</li>
+                <li>Don't close this page - stay here</li>
+            </ul>
+        </div>
+
+        <a href="/Auth/Logout" class="logout-btn">Logout</a>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const CHECK_INTERVAL = 5000; // 5 секунд
+        const MAX_RETRIES = 5;
+        let checkAttempts = 0;
+
+        async function checkStatusAndRedirect() {
+            try {
+                const response = await fetch('/Pending?handler=CheckStatus');
+                const data = await response.json();
+
+                // Обновляем время последней проверки
+                const now = new Date();
+                document.getElementById('lastCheck').textContent = 
+                    now.toLocaleTimeString();
+
+                if (data.success) {
+                    // Обновляем текущий статус
+                    document.getElementById('currentStatus').textContent = 
+                        data.statusName || 'Unknown';
+
+                    if (data.approved) {
+                        // ✅ Статус > 0 - редирект на главную страницу
+                        showApprovalMessage();
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 2000);
+                    } else {
+                        // Еще ждем
+                        checkAttempts = 0; // Сбросили счетчик при успешной проверке
+                    }
+                } else {
+                    // Ошибка при проверке
+                    checkAttempts++;
+                    if (checkAttempts >= MAX_RETRIES) {
+                        showErrorMessage();
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+                checkAttempts++;
+                if (checkAttempts >= MAX_RETRIES) {
+                    showErrorMessage();
+                }
+            }
+        }
+
+        function showApprovalMessage() {
+            const card = document.querySelector('.pending-card');
+            const icon = document.getElementById('statusIcon');
+            const title = document.getElementById('statusTitle');
+            const badge = document.getElementById('statusBadge');
+            const spinner = document.getElementById('loadingSpinner');
+
+            spinner.style.display = 'none';
+            icon.textContent = '✅';
+            icon.style.animation = 'none';
+            title.textContent = 'Approved!';
+            badge.className = 'status-badge status-approved';
+            badge.textContent = '✅ Approved - Redirecting...';
+            card.style.borderColor = '#10b981';
+        }
+
+        function showErrorMessage() {
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+            statusBadge.style.borderColor = '#ef4444';
+            statusBadge.style.color = '#fca5a5';
+            statusBadge.textContent = '❌ Error checking status - please refresh';
+        }
+
+        // Проверяем статус при загрузке страницы
+        checkStatusAndRedirect();
+
+        // Проверяем статус каждые 5 секунд
+        setInterval(checkStatusAndRedirect, CHECK_INTERVAL);
+
+        // Опционально: используем Visibility API для экономии ресурсов
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Страница скрыта - можно уменьшить частоту проверок
+                console.log('Page hidden - reducing check frequency');
+            } else {
+                // Страница видна - проверяем статус сразу
+                console.log('Page visible - checking status now');
+                checkStatusAndRedirect();
+            }
+        });
+    </script>
+}
