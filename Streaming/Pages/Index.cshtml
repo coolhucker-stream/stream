@@ -77,101 +77,35 @@ else
                 </button>
             </div>
         </div>
-    </div>
-}
+         </div>
+    }
 
-<!-- Settings Modal -->
-<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="settingsModalLabel">Stream Settings</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="settingsForm">
-                    @Html.AntiForgeryToken()
-                    <div class="mb-3">
-                        <label for="StreamTitle" class="form-label">Stream Title</label>
-                        <input type="text" class="form-control" id="StreamTitle" name="StreamTitle" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="StreamDescription" class="form-label">Stream Description</label>
-                        <textarea class="form-control" id="StreamDescription" name="StreamDescription" rows="3" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="StreamKey" class="form-label">Stream Key</label>
-                        <input type="text" class="form-control" id="StreamKey" name="StreamKey" required>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
-            </div>
-        </div>
-    </div>
-</div>
+    @section Scripts {
+        <!-- Watch page styles -->
+        <link rel="stylesheet" href="~/css/watch.css" asp-append-version="true" />
 
-@section Scripts {
-    <!-- Watch page styles -->
-    <link rel="stylesheet" href="~/css/watch.css" asp-append-version="true" />
+        <!-- SignalR client library -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
 
-    <!-- SignalR client library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+        <!-- Watch page JavaScript - load first to initialize error handler -->
+        <script>
+            // Pass server-side data to JavaScript BEFORE loading hls.js
+            window.streamUrl = '@Model.Stream?.StreamUrl';
 
-    <!-- Watch page JavaScript - load first to initialize error handler -->
-    <script>
-        // Pass server-side data to JavaScript BEFORE loading hls.js
-        window.streamUrl = '@Model.Stream?.StreamUrl';
+            // Track hls.js loading state
+            window.hlsLoadStartTime = Date.now();
+            window.hlsLoaded = false;
+        </script>
 
-        // Track hls.js loading state
-        window.hlsLoadStartTime = Date.now();
-        window.hlsLoaded = false;
-    </script>
+        <!-- Hls.js for HLS (.m3u8) playback -->
+        <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"
+                onload="window.hlsLoaded = true; console.log('✅ hls.js loaded successfully in ' + (Date.now() - window.hlsLoadStartTime) + 'ms');"
+                onerror="console.error('❌ Failed to load hls.js from CDN');">
+        </script>
 
-    <!-- Hls.js for HLS (.m3u8) playback -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"
-            onload="window.hlsLoaded = true; console.log('✅ hls.js loaded successfully in ' + (Date.now() - window.hlsLoadStartTime) + 'ms');"
-            onerror="console.error('❌ Failed to load hls.js from CDN');">
-    </script>
-
-    <!-- Main watch page logic -->
-    <script src="~/js/chat.js" asp-append-version="true"></script>
-    <script src="~/js/player.js" asp-append-version="true"></script>
-    <script src="~/js/signalr.js" asp-append-version="true"></script>
-    <script src="~/js/watch.js" asp-append-version="true"></script>
-
-    <!-- Settings modal script -->
-    <script>
-        $(document).ready(function() {
-        // Load current settings when modal opens
-        $('#settingsModal').on('show.bs.modal', function() {
-        $.get('/Settings?format=json', function(data) {
-        console.log('Loaded settings:', data);
-        $('#StreamTitle').val(data.streamTitle);
-        $('#StreamDescription').val(data.streamDescription);
-        $('#StreamKey').val(data.streamKey);
-        }).fail(function(xhr, status, error) {
-        console.error('Failed to load settings:', status, error);
-        });
-        });
-
-        // Save settings
-        $('#saveSettingsBtn').click(function() {
-        var formData = $('#settingsForm').serialize();
-        $.post('/Settings', formData, function(response) {
-        if (response.success) {
-        $('#settingsModal').modal('hide');
-        // Update the displayed title and description
-        $('.stream-title-large').text($('#StreamTitle').val());
-        $('.streamer-name-large').text($('#StreamDescription').val());
-        alert('Settings saved successfully!');
-        } else {
-        alert('Error saving settings.');
-        }
-        });
-        });
-        });
-    </script>
-}
+        <!-- Main watch page logic -->
+        <script src="~/js/chat.js" asp-append-version="true"></script>
+        <script src="~/js/player.js" asp-append-version="true"></script>
+        <script src="~/js/signalr.js" asp-append-version="true"></script>
+        <script src="~/js/watch.js" asp-append-version="true"></script>
+    }

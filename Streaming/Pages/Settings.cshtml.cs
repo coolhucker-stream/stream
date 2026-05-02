@@ -8,38 +8,59 @@ using Telegram.Bot.Types.Enums;
 namespace Streaming.Pages
 {
     [RequireTelegramSession(ChatMemberStatus.Administrator)]
-    public class SettingsModel : PageModel
+    public class SettingsModel(StreamService streamService, IConfiguration configuration) : PageModel
     {
-        private readonly StreamService _streamService;
-
-        public SettingsModel(StreamService streamService)
-        {
-            _streamService = streamService;
-        }
-
         [BindProperty]
         public StreamSettings Settings { get; set; }
 
-        public async Task<IActionResult> OnGet()
+        public IConfiguration Configuration { get; private set; } = configuration;
+
+        public async Task OnGetAsync()
         {
-            var settings = await _streamService.GetSettings();
-            return new JsonResult(new
-            {
-                streamTitle = settings.StreamTitle,
-                streamDescription = settings.StreamDescription,
-                streamKey = settings.StreamKey
-            });
+            Settings = await streamService.GetSettings();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            if (!ModelState.IsValid)
+            try
             {
-                return new JsonResult(new { success = false, message = "Invalid data" });
-            }
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState.Values.SelectMany(v => v.Errors);
+                    var errorMessage = string.Join(", ", errors.Select(e => e.ErrorMessage));
+                    TempData["ErrorMessage"] = $"Validation error: {errorMessage}";
+                    return Page();
+                }
 
-            await _streamService.UpdateSettingsAsync(Settings);
-            return new JsonResult(new { success = true });
+                // Validate before updating
+                if (string.IsNullOrWhiteSpace(Settings.StreamTitle))
+                {
+                    TempData["ErrorMessage"] = "Stream title is required";
+                    return Page();
+                }
+
+                if (string.IsNullOrWhiteSpace(Settings.StreamDescription))
+                {
+                    TempData["ErrorMessage"] = "Stream description is required";
+                    return Page();
+                }
+
+                if (string.IsNullOrWhiteSpace(Settings.StreamKey))
+                {
+                    TempData["ErrorMessage"] = "Stream key is required";
+                    return Page();
+                }
+
+                await streamService.UpdateSettingsAsync(Settings);
+                TempData["SuccessMessage"] = "Settings saved successfully!";
+                return RedirectToPage();
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Error saving settings: {ex.Message}";
+                Settings = await streamService.GetSettings();
+                return Page();
+            }
         }
     }
 }

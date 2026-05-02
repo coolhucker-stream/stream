@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace Streaming.Models
 {
     public class StreamSettings

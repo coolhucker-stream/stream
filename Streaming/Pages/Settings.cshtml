@@ -4,27 +4,107 @@
     ViewData["Title"] = "Stream Settings";
 }
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h2>Stream Settings</h2>
-                </div>
-                <div class="card-body">
-                    <form method="post">
-                        <div class="mb-3">
-                            <label for="StreamDescription" class="form-label">Stream Description</label>
-                            <textarea class="form-control" id="StreamDescription" name="StreamDescription" rows="3" required>@Model.Settings.StreamDescription</textarea>
+<div class="settings-container">
+    <div class="settings-header">
+        <h1>Stream Settings</h1>
+        <p class="lead">Configure your streaming details</p>
+    </div>
+
+    <div class="settings-content">
+        <div class="settings-panel">
+            <form method="post" id="settingsForm">
+                <div class="form-section">
+                    <h3>Stream Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="StreamTitle" class="form-label">Stream Title</label>
+                        <input type="text" class="form-control" id="StreamTitle" name="Settings.StreamTitle" value="@Model.Settings.StreamTitle" required maxlength="200">
+                        <small class="form-text text-muted">Give your stream a catchy title</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="StreamDescription" class="form-label">Stream Description</label>
+                        <textarea class="form-control" id="StreamDescription" name="Settings.StreamDescription" rows="4" required maxlength="1000">@Model.Settings.StreamDescription</textarea>
+                        <small class="form-text text-muted">Describe what your stream is about</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="StreamKey" class="form-label">Stream Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="StreamKey" name="Settings.StreamKey" value="@Model.Settings.StreamKey" required>
+                            <button class="btn btn-outline-secondary" type="button" id="toggleStreamKey">
+                                <i class="fas fa-eye"></i>
+                            </button>
                         </div>
-                        <div class="mb-3">
-                            <label for="StreamKey" class="form-label">Stream Key</label>
-                            <input type="text" class="form-control" id="StreamKey" name="StreamKey" value="@Model.Settings.StreamKey" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Save Settings</button>
-                    </form>
+                        <small class="form-text text-muted">Keep this secret! Use it to stream from OBS/RTMP servers</small>
+                    </div>
                 </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Save Settings
+                    </button>
+                    <a href="/" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
+
+            @if (!string.IsNullOrEmpty(TempData["SuccessMessage"]?.ToString()))
+            {
+                <div class="alert alert-success alert-dismissible fade show mt-4" role="alert">
+                    <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(TempData["ErrorMessage"]?.ToString()))
+            {
+                <div class="alert alert-danger alert-dismissible fade show mt-4" role="alert">
+                    <i class="fas fa-exclamation-circle"></i> @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+        </div>
+
+        <div class="settings-info-panel">
+            <div class="info-box">
+                <h4>💡 Tips</h4>
+                <ul>
+                    <li>Your stream key is like a password — never share it</li>
+                    <li>Keep your title descriptive but concise</li>
+                    <li>Use keywords in description for better discoverability</li>
+                </ul>
+            </div>
+
+            <div class="info-box">
+                <h4>📡 RTMP Server</h4>
+                <p><strong>URL:</strong></p>
+                <code>@(Model.Configuration["Streaming:RtmpBaseUrl"])</code>
+                <p class="mt-2"><strong>Key:</strong></p>
+                <code>@Model.Settings.StreamKey</code>
             </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <link rel="stylesheet" href="~/css/settings.css" asp-append-version="true" />
+
+    <script>
+        $(document).ready(function() {
+            $('#toggleStreamKey').click(function() {
+                var input = $('#StreamKey');
+                var icon = $(this).find('i');
+                
+                if (input.attr('type') === 'password') {
+                    input.attr('type', 'text');
+                    icon.removeClass('fa-eye').addClass('fa-eye-slash');
+                } else {
+                    input.attr('type', 'password');
+                    icon.removeClass('fa-eye-slash').addClass('fa-eye');
+                }
+            });
+        });
+    </script>
+}
